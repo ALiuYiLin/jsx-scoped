@@ -25,10 +25,10 @@ export default function Demo() {
       </div>
 
       <div className="demo__footer">
-        <span className="demo__note">该文字颜色来自内联 <code>{'<style scoped>'}</code>。</span>
+        <span className="demo__note">该文字颜色来自内联 <code>{'<style scoped>'}</code>（默认按 css）。</span>
       </div>
 
-      {/* 内联 scoped 样式（静态文本） */}
+      {/* 内联 scoped 样式（静态文本；不加 lang 默认按 css 处理） */}
       <style scoped>{`
         .demo__footer {
           margin-top: 18px;
@@ -42,6 +42,29 @@ export default function Demo() {
         }
         .demo__note::before {
           content: '◎ ';
+        }
+      `}</style>
+
+      <div className="demo__scss-inline">
+        <span className="demo__scss-note">
+          该文字颜色来自内联 <code>{'<style scoped lang="scss">'}</code>（sass 嵌套语法）。
+        </span>
+      </div>
+
+      {/* 内联 scoped + lang="scss"：内容按 sass 编译后再追加 [data-v-*] */}
+      <style scoped lang="scss">{`
+        .demo__scss-inline {
+          margin-top: 14px;
+          padding-top: 10px;
+          border-top: 1px dotted #e2e8f0;
+          .demo__scss-note {
+            color: #b45309;
+            font-size: 13px;
+            font-weight: 600;
+            &::before {
+              content: '◈ ';
+            }
+          }
         }
       `}</style>
     </section>
