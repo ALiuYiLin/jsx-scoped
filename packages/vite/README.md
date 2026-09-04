@@ -26,6 +26,29 @@ export default defineConfig({
 })
 ```
 
+## 类型声明：消除 `*.scoped.*` 导入报错（TS2307）
+
+`*.scoped.scss` 这类命名约定没有内置 TS 声明，直接 `import './demo.scoped.scss'`
+可能报 `Cannot find module './demo.scoped.scss' or its corresponding type declarations`。
+本包附带模块声明文件，在 tsconfig 的 `types` 字段引入即可：
+
+```jsonc
+// tsconfig.json
+{
+  "compilerOptions": {
+    "types": ["vite/client", "@10coding/vite-plugin-jsx-scoped/client"]
+    // 可选：TS 5.6+ 开启副作用导入严格检查，让声明真正被用到
+    // "noUncheckedSideEffectImports": true
+  }
+}
+```
+
+或者用三斜线引用：`/// <reference types="@10coding/vite-plugin-jsx-scoped/client" />`。
+
+> 若项目已引入 `vite/client`，其 `*.scss` 等通配声明也能覆盖到 `demo.scoped.scss`；
+> 本声明文件让**不依赖 vite/client** 的项目同样不再报错，且语义更精确
+> （只声明 `*.scoped.{css,scss,sass,less}`）。
+
 ## 触发 scoped 的两种标记
 
 1. 导入命名约定样式文件：`*.scoped.css`、`*.scoped.scss`、`*.scoped.sass`、`*.scoped.less`

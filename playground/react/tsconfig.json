@@ -5,7 +5,9 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "useDefineForClassFields": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["vite/client", "@10coding/vite-plugin-jsx-scoped/client"],
+    "noUncheckedSideEffectImports": true
   },
   "include": ["src", "vite.config.ts"]
 }

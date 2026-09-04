@@ -68,6 +68,20 @@ export default function Demo() {
 }
 ```
 
+### 类型声明（消除 `*.scoped.*` 导入的 TS2307）
+
+`*.scoped.scss` 等命名约定没有内置 TS 声明，在 tsconfig `types` 引入本插件自带的
+模块声明文件即可（可选配合 `noUncheckedSideEffectImports` 严格检查）：
+
+```jsonc
+{
+  "compilerOptions": {
+    "types": ["vite/client", "@10coding/vite-plugin-jsx-scoped/client"],
+    "noUncheckedSideEffectImports": true
+  }
+}
+```
+
 ```scss
 // src/demo/demo.scoped.scss —— 编译后每条选择器都追加 [data-v-<hash>]
 .demo {
