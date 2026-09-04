@@ -109,6 +109,41 @@ export default function Child({ scopedId }: { scopedId?: string }) {
 - 未命中标记的组件完全跳过，源码不被改写；
 - 内联 `<style scoped>` 必须是静态文本；组件热更新时联动刷新对应样式模块。
 
+## 可编程复用（JsxScopedPipeline）
+
+插件的编排逻辑被抽成可实例化的 `JsxScopedPipeline`（Vite 插件内部即用它），
+可脱离 Vite hook 直接复用——典型场景：把「md 页面生成的 TSX 文本」按组件处理，
+`componentFilePath` 直接传 md 绝对路径即可（不要求是真实 JSX 文件，也不会读磁盘）：
+
+```ts
+import { createJsxScopedPipeline } from '@10coding/vite-plugin-jsx-scoped'
+
+const pipeline = createJsxScopedPipeline()
+
+// md → TSX 文本（含 <style scoped>）
+const result = pipeline.transform(tsxText, '/abs/path/page.md')
+// => { enabled, code, map, warnings, scopeAttr, scopeHash, virtualIds }
+
+// 内联样式已在 transform 时登记：load 优先取登记内容，不依赖磁盘
+const css = await pipeline.load(result.virtualIds[0]) // 已追加 [data-v-{hash}]
+```
+
+要点：
+
+- `transform(code, componentFilePath, parserFilename?)`：md 路径缺省会按 TSX 语法
+  解析；`parserFilename` 可在组件路径与实际语法来源不一致时显式指定；
+- 返回 `warnings: string[]`（多资源覆盖、无法解析的导入、解析失败等提示），
+  绑定 Vite config 时同时写入 `config.logger`，编程式调用方可只消费返回值；
+- 解析失败时 `enabled=false` 且带 `parseError` 字段；
+- `virtualIds` 不含 `\0` 前缀，可用导出的 `parseVirtualId(id)` 反解成
+  `{ kind: 'file'|'inline', cssRealPath/componentFilePath, index }`；
+- **实例状态即会话状态**：内联样式登记、scoped 文件归属、HMR 失效映射均挂在
+  实例上（生命周期 = 持有它的进程/插件实例）。请对同一实例传入唯一且稳定的
+  `componentFilePath`；跨实例不共享任何状态；
+- 外部的 css 产物若要享受 dev 注入 + HMR + build 抽取，需让产物代码 import 上述
+  `virtualIds`，且本插件在该 Vite 应用中以相同选项注册（`resolveId`/`load`
+  由它提供）。
+
 ## 原理速览
 
 组件 transform 阶段把 scoped 导入改写到「虚拟 css 模块」；
