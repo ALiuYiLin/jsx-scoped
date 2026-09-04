@@ -1,7 +1,7 @@
 {
-  "name": "@10coding/plugin-jsx-scoped",
+  "name": "@10coding/postcss-jsx-scoped",
   "version": "0.1.0",
-  "description": "Babel plugin for Vue-like scoped styles in JSX/TSX: computes a data-v-{hash} from the component file path and injects the attribute into JSX elements",
+  "description": "PostCSS plugin for Vue-like scoped styles in JSX/TSX: appends [data-v-{hash}] attribute selectors to CSS selectors",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,18 +27,10 @@
     "test": "pnpm build && node scripts/verify.mjs"
   },
   "dependencies": {
-    "@babel/parser": "^7.26.0"
-  },
-  "peerDependencies": {
-    "@babel/core": ">=7.13.0"
-  },
-  "peerDependenciesMeta": {
-    "@babel/core": {
-      "optional": true
-    }
+    "postcss": "^8.5.1",
+    "postcss-selector-parser": "^7.1.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
     "@types/node": "^22.10.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2"

@@ -2,7 +2,11 @@
 // 用法：pnpm test（= build + node scripts/verify.mjs）
 import assert from 'node:assert/strict'
 import { transformSync } from '@babel/core'
-import jsxScopedPlugin, { computeScopeAttr, generateScopeHash } from '../dist/index.js'
+import jsxScopedPlugin, {
+  computeScopeAttr,
+  generateScopeHash,
+  analyzeScopedUsage,
+} from '../dist/index.js'
 
 const FILE = 'E:/proj/src/demo.tsx'
 
@@ -69,6 +73,32 @@ assert.throws(
   () => transform(`const a = <div />`, { scopeAttr: undefined }, ''),
   /缺少必要配置/,
 )
+
+// ---------- 7. analyzeScopedUsage：收集 scoped 开启标记 ----------
+const srcWithMarkers = `
+import './demo.scoped.scss'
+import React from 'react'
+export function Demo() {
+  return (
+    <section>
+      <style scoped lang="less">{'.x { color: #333; }'}</style>
+      <span />
+    </section>
+  )
+}
+`
+const analysis = analyzeScopedUsage(srcWithMarkers, FILE)
+assert.equal(analysis.enabled, true)
+assert.deepEqual(
+  analysis.externalImports.map((i) => i.specifier),
+  ['./demo.scoped.scss'],
+)
+assert.equal(analysis.inlineStyles.length, 1)
+assert.equal(analysis.inlineStyles[0].lang, 'less')
+assert.ok(analysis.inlineStyles[0].content.includes('.x'))
+
+const plain = analyzeScopedUsage(`export const a = <div />`, FILE)
+assert.equal(plain.enabled, false)
 
 console.log('✓ verify passed')
 console.log('  scopeAttr for', FILE, '=', scopeAttr)

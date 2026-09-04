@@ -17,6 +17,23 @@ export {
   computeScopeAttr,
 } from './hash'
 
+export {
+  SCOPED_STYLE_FILE_RE,
+  SCOPED_STYLE_FILE_GATE_RE,
+  SCOPED_STYLE_TAG_GATE_RE,
+  STYLE_LANGS,
+  isStyleLang,
+  normalizeStyleLang,
+  styleTextFromChildren,
+  analyzeScopedUsage,
+} from './analyze'
+export type {
+  StyleLang,
+  ScopedExternalImport,
+  ScopedInlineStyle,
+  ScopedUsageAnalysis,
+} from './analyze'
+
 /** 兜底选项归一化：从 options 解析出最终 scope 属性名 */
 export function resolveScopeAttr(options: JsxScopedBabelOptions): string {
   const hashLength = options.hashLength ?? DEFAULT_HASH_LENGTH
@@ -135,3 +152,5 @@ export default function jsxScopedBabelPlugin(
     },
   }
 }
+
+export { jsxScopedBabelPlugin }

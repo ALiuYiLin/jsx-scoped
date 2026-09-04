@@ -1,0 +1,30 @@
+@brand: #0ea5e9;
+@radius: 12px;
+
+.card-scoped {
+  width: 200px;
+  padding: 14px;
+  border: 1px solid fade(@brand, 30%);
+  border-radius: @radius;
+  background: #f0f9ff;
+
+  &__name {
+    color: @brand;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  &__desc {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  &--primary {
+    border-width: 2px;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "@10coding/vite-plugin-jsx-scoped",
+  "version": "0.1.0",
+  "description": "Vite plugin for Vue-like scoped styles in JSX/TSX (React): scopes *.scoped.{css,scss,less} imports and inline <style scoped> with a data-v-{hash} derived from the component file path",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@10coding/plugin-jsx-scoped": "workspace:*",
+    "@10coding/postcss-jsx-scoped": "workspace:*",
+    "@babel/core": "^7.26.0"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "sass": {
+      "optional": true
+    },
+    "less": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/less": "^3.0.3",
+    "@types/node": "^22.10.0",
+    "less": "^4.2.0",
+    "sass": "^1.83.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}

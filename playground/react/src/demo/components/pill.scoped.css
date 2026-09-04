@@ -1,0 +1,27 @@
+.pill-scoped {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+}
+
+.pill-scoped__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+}
+
+/* 伪元素保持在 [data-v-*] 之后：.pill-scoped[data-v-x]::after */
+.pill-scoped::after {
+  content: '· plain css scoped';
+  color: #94a3b8;
+  font-size: 12px;
+  margin-left: 2px;
+}

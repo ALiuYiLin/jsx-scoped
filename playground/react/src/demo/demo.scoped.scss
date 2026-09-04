@@ -1,0 +1,54 @@
+$demo-radius: 14px;
+
+// demo.scoped.scss —— 外部 scoped scss
+// 会被 sass 编译为普通 CSS 后，再追加 [data-v-{hash}]（$jsx-scoped-brand 来自
+// vite.config.ts 的 css.preprocessorOptions.scss.additionalData）
+.demo {
+  max-width: 680px;
+  padding: 24px;
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: $demo-radius;
+  background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+
+  &__title {
+    margin: 0 0 10px;
+    color: $jsx-scoped-brand;
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  &__desc {
+    margin: 0;
+    color: #475569;
+    line-height: 1.8;
+    font-size: 14px;
+  }
+
+  &__row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  &:hover {
+    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.14);
+  }
+
+  @media (max-width: 640px) {
+    padding: 14px;
+    &__row {
+      flex-direction: column;
+    }
+  }
+}
+
+// 演示 @keyframes 内部选择器（from/to/%）不会被追加 [data-v-*]
+@keyframes jsx-scoped-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.demo__pulse {
+  animation: jsx-scoped-pulse 2.4s ease-in-out infinite;
+}
