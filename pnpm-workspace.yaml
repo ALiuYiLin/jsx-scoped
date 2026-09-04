@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+
+# pnpm >= 11 默认拦截依赖的 postinstall 脚本，这里显式放行需要构建的依赖
+allowBuilds:
+  esbuild: true
