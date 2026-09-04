@@ -1,0 +1,60 @@
+$demo-radius: 14px;
+
+// demo.scoped.scss —— Solid 示例用 scoped scss
+// $jsx-scoped-brand 来自 vite.config.ts 的 additionalData
+.demo {
+  max-width: 680px;
+  padding: 24px;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: $demo-radius;
+  background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+
+  &__title {
+    margin: 0 0 10px;
+    color: $jsx-scoped-brand;
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  &__desc {
+    margin: 0;
+    color: #57534e;
+    line-height: 1.8;
+    font-size: 14px;
+  }
+
+  &__row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  &:hover {
+    box-shadow: 0 12px 28px rgba(220, 38, 38, 0.12);
+  }
+
+  @media (max-width: 640px) {
+    padding: 14px;
+  }
+}
+
+@keyframes jsx-scoped-pulse-solid {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.demo__pulse {
+  animation: jsx-scoped-pulse-solid 2.4s ease-in-out infinite;
+}
+
+// 命中子组件根元素（子组件把父级 scopedId 绑到根元素后生效）
+.child-root-solid {
+  width: 220px;
+  padding: 12px;
+  border-left: 4px solid $jsx-scoped-brand;
+  background: rgba(220, 38, 38, 0.05);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #44403c;
+}

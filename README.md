@@ -18,8 +18,12 @@ jsx-scoped/
 │  ├─ postcss/   → @10coding/postcss-jsx-scoped     # PostCSS 插件：选择器追加 [data-v-{hash}]
 │  └─ vite/      → @10coding/vite-plugin-jsx-scoped # Vite 主入口：编排以上两者 + 预处理编译
 └─ playground/
-   └─ react/     → React 示例（demo.tsx + demo.scoped.scss 等）
+   ├─ react/     → React 示例（demo.tsx + demo.scoped.scss 等）
+   └─ solid/     → Solid 示例（验证非 React 的 JSX 框架同样生效）
 ```
+
+> 框架无关性：管线在 JSX AST 层工作（hash 种子 = 组件文件路径、注入属性/提取内联
+> style、css 选择器追加），不依赖具体运行时——React 与 Solid 示例均已实测通过。
 
 ## 快速开始
 
@@ -27,13 +31,19 @@ jsx-scoped/
 pnpm install
 pnpm build          # 构建三个包
 pnpm demo           # 启动 React 示例（vite dev）
-pnpm build:demo     # 生产构建示例
+pnpm build:demo     # 生产构建 React 示例
+pnpm demo:solid     # 启动 Solid 示例
+pnpm build:demo:solid # 生产构建 Solid 示例
 ```
 
 React 示例包含：外部 `*.scoped.scss`、外部 `*.scoped.less`、外部 `*.scoped.css`、
 组件内联 `<style scoped>`（纯 css）与 `<style scoped lang="scss">`（sass 嵌套）、
 全局非 scoped css，以及一个构建期 warning
 （同一组件导入多个 scoped 资源时提示书写顺序可能互相覆盖）。
+
+Solid 示例包含：外部 `*.scoped.scss` + 内联 `<style scoped lang="scss">` +
+自定义组件 `scopedId` 绑定（child-root），用于验证样式隔离在非 React 的 JSX
+框架下依然有效。
 
 ## 发布（changesets）
 
