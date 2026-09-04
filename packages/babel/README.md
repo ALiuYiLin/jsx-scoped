@@ -13,10 +13,12 @@
 
 - 纯 Babel 插件，无运行时依赖（`@babel/core` 为 peer，可选）
 - 种子：组件文件绝对路径 → `md5` → 截取前 8 位 → `data-v-3f2a9c1d`
-- 注入目标：文件内所有 JSX **DOM 元素**标签（div/span/…）
+- DOM 元素（div/span/…）注入完整属性：`<div data-v-3f2a9c1d="">`
   - 跳过 `<style>`（含 `<style scoped>`，留给上层流水线处理）
   - 跳过 `<Fragment>` 与文本节点（本来也不是元素）
-  - 自定义组件（`<Foo />`）默认不注入，可开 `addToComponents: true`
+- **组件 scoped（默认自动开启）**：自定义组件标签注入
+  `<Child scopedId="data-v-3f2a9c1d">`，子组件需要时自行读取 scopedId
+  并绑定到根元素（child-root 继承父级 scope id）；`componentScoped: false` 关闭
 - 元素已存在同名属性时自动覆盖，不会重复添加
 - 附带独立的 hash 工具函数，供 vite/postcss 包复用
 
@@ -59,10 +61,13 @@ const result = transformSync(code, {
 输入 `demo.tsx`：
 
 ```tsx
+import Child from './Child'
+
 export function Demo() {
   return (
     <section className="demo">
       <h2 className="title">Hello</h2>
+      <Child />
       <style scoped>{'h2 { color: red; }'}</style>
     </section>
   )
@@ -72,14 +77,39 @@ export function Demo() {
 输出（scope 属性名由 `md5('E:/proj/src/demo.tsx')` 前 8 位决定）：
 
 ```tsx
+import Child from './Child'
+
 export function Demo() {
   return (
     <section className="demo" data-v-aa80bcf8="">
       <h2 className="title" data-v-aa80bcf8="">Hello</h2>
+      <Child scopedId="data-v-aa80bcf8" />
       <style scoped>{'h2 { color: red; }'}</style>
     </section>
   )
 }
+```
+
+### 组件 scoped（child-root 继承）
+
+自定义组件不会被直接注入 `data-v-*`（那只是普通 props），而是注入
+`scopedId="data-v-{hash}"`。子组件**如果需要**继承父级 scope（让父组件 scoped
+样式能命中子组件根元素），自行读取并把该属性绑到根元素上：
+
+```tsx
+// Child.tsx
+export default function Child({ scopedId }: { scopedId?: string }) {
+  return (
+    <div className="child-root" {...(scopedId ? { [scopedId]: '' } : {})}>
+      {/* 根元素因此带上父级的 data-v-{hash} */}
+    </div>
+  )
+}
+```
+
+```scss
+/* demo.scoped.scss —— 选择器被追加 [data-v-aa80bcf8]，可命中上面的 child-root */
+.child-root { border-left: 4px solid #4f46e5; }
 ```
 
 ## 配置项
@@ -94,8 +124,14 @@ interface JsxScopedBabelOptions {
   scopeHash?: string
   /** hash 位数，默认 8 */
   hashLength?: number
-  /** 是否同时给自定义组件标签 <Foo /> 注入（默认 false） */
-  addToComponents?: boolean
+  /**
+   * 组件 scoped：默认 true。
+   * 给自定义组件标签注入 <Child scopedId="data-v-{hash}">；
+   * 设为 false 则自定义组件标签不被注入任何属性。
+   */
+  componentScoped?: boolean
+  /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
+  scopedIdAttributeName?: string
 }
 ```
 

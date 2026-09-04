@@ -20,13 +20,16 @@ function transform(code, options = {}, filename = FILE) {
   }).code
 }
 
-// ---------- 1. 基础注入：DOM 元素注入，style/Fragment/文本跳过，自定义组件默认跳过 ----------
+// ---------- 1. 基础注入：DOM 元素注入；style/Fragment/文本跳过 ----------
+// 自定义组件（<Widget />）默认注入 scopedId="data-v-{hash}"（组件 scoped），
+// 子组件可自行取用并绑定到根元素。
 const code1 = `
 export function Demo(props: { title: string }) {
   return (
     <section className="demo">
       <h2 className="title">{props.title}</h2>
       <Widget><span className="child" /></Widget>
+      <UI.Button>action</UI.Button>
       <style scoped>{'h2 { color: red; }'}</style>
       <>plain fragment text</>
     </section>
@@ -39,12 +42,36 @@ assert.equal(out1.includes(scopeAttr), true, '输出中应包含 scope 属性')
 assert.match(out1, /<section [^>]*data-v-[0-9a-f]{8}/, 'section 应注入')
 assert.match(out1, /<h2 [^>]*data-v-[0-9a-f]{8}/, 'h2 应注入')
 assert.match(out1, /<span [^>]*data-v-[0-9a-f]{8}/, 'span（组件内嵌 DOM）应注入')
-assert.doesNotMatch(out1, /<Widget [^>]*data-v-/, '默认不注入自定义组件 <Widget>')
 assert.match(out1, /<style scoped>/, '<style scoped> 应原样保留、不注入')
+// 组件 scoped：scopedId 值为 scopeAttr（data-v-{hash}），而不是 data-v 属性本身
+assert.match(
+  out1,
+  new RegExp(`<Widget [^>]*scopedId="${scopeAttr}"`),
+  '自定义组件 <Widget> 默认注入 scopedId="data-v-{hash}"',
+)
+assert.doesNotMatch(
+  out1,
+  /<Widget\s[^>]*\sdata-v-[0-9a-f]{8}/,
+  '<Widget> 不应注入独立 data-v 属性（只有 scopedId 值）',
+)
+assert.match(
+  out1,
+  new RegExp(`<UI\\.Button [^>]*scopedId="${scopeAttr}"`),
+  '成员表达式组件 <UI.Button> 也注入 scopedId',
+)
 
-// ---------- 2. addToComponents: true ----------
-const out2 = transform(code1, { addToComponents: true })
-assert.match(out2, /<Widget [^>]*data-v-[0-9a-f]{8}/, 'addToComponents 后组件也应注入')
+// ---------- 2. 组件 scoped 可关闭；属性名可自定义 ----------
+const out2a = transform(code1, { componentScoped: false })
+assert.doesNotMatch(out2a, /<Widget [^>]*scopedId/, 'componentScoped:false 时组件不再注入')
+assert.match(out2a, /<section [^>]*data-v-/, '关闭组件 scoped 不影响 DOM 注入')
+
+const out2b = transform(code1, { scopedIdAttributeName: 'scopeId' })
+assert.match(
+  out2b,
+  new RegExp(`<Widget [^>]*scopeId="${scopeAttr}"`),
+  'scopedIdAttributeName 可自定义属性名',
+)
+assert.doesNotMatch(out2b, /<Widget [^>]*scopedId=/, '默认名 scopedId 不再使用')
 
 // ---------- 3. hash 确定性 & 路径唯一性 ----------
 assert.equal(generateScopeHash(FILE), generateScopeHash(FILE))
@@ -61,6 +88,16 @@ assert.equal(
   '已存在同名 scope 属性时不应重复添加',
 )
 assert.match(out4, new RegExp(`${existingAttr}=""`), '同名属性值应以空串覆盖')
+
+// ---------- 4b. 组件上已存在的 scopedId 被覆盖为生成的 scopeAttr ----------
+const out4b = transform(`const a = <Child scopedId="data-v-00000000" />`)
+assert.equal(
+  (out4b.match(/scopedId=/g) ?? []).length,
+  1,
+  'scopedId 同名时只保留一个',
+)
+assert.match(out4b, new RegExp(`scopedId="${scopeAttr}"`), 'scopedId 值应被覆盖为 scopeAttr')
+assert.doesNotMatch(out4b, /data-v-00000000/, '旧的 scopedId 值应被替换')
 
 // ---------- 5. 显式 scopeAttr / scopeHash 优先 ----------
 const out5 = transform(`const a = <div />`, { scopeAttr: 'data-v-custom' })

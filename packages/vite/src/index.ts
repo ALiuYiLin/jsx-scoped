@@ -30,6 +30,18 @@ export interface JsxScopedViteOptions {
    * @default 8
    */
   scopeHashLength?: number
+  /**
+   * 组件 scoped：默认自动开启（true）。
+   * 开启时给自定义组件标签注入 <Child scopedId="data-v-{hash}">，
+   * 子组件需要时可在根元素上自行绑定该属性（child-root 继承父级 scope id）。
+   * @default true
+   */
+  componentScoped?: boolean
+  /**
+   * 注入到自定义组件标签上的属性名。
+   * @default 'scopedId'
+   */
+  scopedIdAttributeName?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +324,15 @@ export default function jsxScopedVitePlugin(
           sourceMaps: true,
           parserOpts: { plugins: parserPluginsFor(componentFilePath), sourceType: 'module' },
           plugins: [
-            [jsxScopedBabelPlugin, { componentFilePath, scopeAttr }],
+            [
+              jsxScopedBabelPlugin,
+              {
+                componentFilePath,
+                scopeAttr,
+                componentScoped: options.componentScoped,
+                scopedIdAttributeName: options.scopedIdAttributeName,
+              },
+            ],
             [
               buildExtractor,
               {

@@ -19,10 +19,21 @@ export interface JsxScopedBabelOptions {
   /** hash 位数，默认 8（仅当由 componentFilePath 计算时生效） */
   hashLength?: number
   /**
-   * 是否也向自定义组件标签（如 <Foo />、<UI.Button />）注入属性。
-   * 默认 false：只注入到真实 DOM 元素标签（小写开头，如 div/span/svg）。
+   * 组件 scoped：默认自动开启（true）。
+   * 开启时给自定义组件标签（<Child />、<UI.Button />）注入
+   * `<Child scopedId="data-v-{hash}">`：子组件需要时，可在自身根元素上
+   * 手动绑定该属性（等价于 Vue scoped 的“子组件根元素继承父级 scope id”），
+   * 父组件的 scoped 样式才能命中子组件根元素。
+   *
+   * 设为 false 可关闭：自定义组件标签不被注入任何属性。
+   * @default true
    */
-  addToComponents?: boolean
+  componentScoped?: boolean
+  /**
+   * 注入到自定义组件标签上的属性名。
+   * @default 'scopedId'
+   */
+  scopedIdAttributeName?: string
 }
 
 /** babel 插件会注入的最小 api 形状（避免对外依赖 @babel/core 类型） */

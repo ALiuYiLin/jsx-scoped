@@ -1,5 +1,6 @@
 import Card from './components/Card'
 import Pill from './components/Pill'
+import ScopedRoot from './components/ScopedRoot'
 
 // 外部 scoped scss（命名约定 *.scoped.scss）——本文件用路径种子生成 scope hash
 import './demo.scoped.scss'
@@ -17,6 +18,10 @@ export default function Demo() {
       <div className="demo__row">
         <Card />
         <Pill label="plain .css scoped" />
+        {/* 组件 scoped：<ScopedRoot> 会被注入 scopedId="data-v-d875de6e"，
+            子组件把 scopedId 绑到根元素后，demo.scoped.scss 的 .scoped-root
+            规则才能命中它（左侧蓝色描边即父级 scope 生效的效果） */}
+        <ScopedRoot label="Child 根元素绑定了父级 scopedId" />
       </div>
 
       <div className="demo__footer">

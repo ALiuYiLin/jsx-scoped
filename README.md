@@ -83,7 +83,7 @@ export default function Demo() {
 | 阶段 | 输入 | 动作 | 输出 |
 | --- | --- | --- | --- |
 | 1. Vite transform 扫描 | tsx/jsx 源码 + 文件绝对路径 | 匹配 `*.scoped.(css\|scss\|sass\|less)` 导入、扫描 `<style scoped>`；命中即用 **md5(组件文件路径)** 前 8 位生成 `data-v-{hash}` 并登记 | 标记开启 + ComponentScopeInfo |
-| 2. Babel 插件（@10coding/plugin-jsx-scoped） | JSX AST + 组件路径/scopeAttr | 给 JSX DOM 元素注入 `data-v-{hash}`（跳过 Fragment、文本、`<style>`；同名属性覆盖） | 修改后的 JSX AST |
+| 2. Babel 插件（@10coding/plugin-jsx-scoped） | JSX AST + 组件路径/scopeAttr | 给 JSX DOM 元素注入 `data-v-{hash}`；自定义组件默认注入 `<Child scopedId="data-v-{hash}">`（组件 scoped，可关闭）；跳过 Fragment、文本、`<style>`；同名属性覆盖 | 修改后的 JSX AST |
 | 3. 样式编译（Vite 插件 load） | 样式资源 + ComponentScopeInfo | scss/sass → sass；less → less；css 直用；**先编译成普通 CSS** | 纯 CSS |
 | 4. PostCSS 插件（@10coding/postcss-jsx-scoped） | CSS AST + scopeAttr | 每条普通选择器末尾追加 `[data-v-{hash}]`；@media/@supports 内正常；@keyframes 帧、@page 不追加；伪元素保持在属性之后 | 最终 scoped CSS |
 
@@ -130,6 +130,10 @@ interface JsxScopedViteOptions {
   warnMultiScopedImport?: boolean
   /** scope hash 位数，默认 8 */
   scopeHashLength?: number
+  /** 组件 scoped：默认 true。给自定义组件注入 <Child scopedId="data-v-{hash}"> */
+  componentScoped?: boolean
+  /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
+  scopedIdAttributeName?: string
 }
 ```
 
@@ -139,15 +143,37 @@ interface JsxScopedViteOptions {
 - [packages/postcss/README.md](./packages/postcss/README.md) —— PostCSS 插件（追加选择器）
 - [packages/vite/README.md](./packages/vite/README.md) —— Vite 插件（编排）
 
+## 组件 scoped（child-root 继承，默认自动开启）
+
+自定义组件标签默认注入 `<Child scopedId="data-v-<parentHash>">`（可用
+`componentScoped: false` 整体关闭）。子组件**如果需要**继承父级 scope，
+自行读取 scopedId 并绑定到自身根元素：
+
+```tsx
+// Child.tsx —— 需要继承父级 scope 时手动绑定（可选，零成本）
+export default function Child({ scopedId }: { scopedId?: string }) {
+  return <div className="child-root" {...(scopedId ? { [scopedId]: '' } : {})}>…</div>
+}
+```
+
+```scss
+// 父组件 demo.scoped.scss —— .child-root 选择器会被追加父级 [data-v-…]
+.child-root { border-left: 4px solid #4f46e5; }
+```
+
+这样父组件的 scoped 样式可以命中子组件根元素（同 Vue scoped 的 child-root
+语义；子组件内部其它 DOM 仍由子组件自身 scope 决定）。
+
 ## 已知限制（v1）
 
-- 样式隔离只作用于「本文件里书写的 JSX 元素」。跨文件组件的内部 DOM 不会
-  继承父组件 scope 属性（与 Vue 的 child-root 继承不同，React 无法自动透传属性）。
+- 样式隔离只作用于「本文件里书写的 JSX 元素」。跨文件组件内部 DOM 默认不带
+  父组件 scope 属性；需要时用上面的 `scopedId` 手动把父级 scope 绑到子组件
+  **根元素**（React 无法像 Vue 那样自动透传，因此由用户按需绑定）。
 - scoped css 文件里的相对 `url(...)` / css `@import` 以虚拟模块路径为基准，
   可能无法正确解析；**推荐资源引用走绝对路径或放入 scoped 文件同目录并经过
   Vite 资源管线处理的常规方式**（scss/less 的 `@import` 由编译器内联，不受影响）。
 - `<style scoped>` 内容需为静态文本（不支持 JS 表达式插值）。
-- scope 属性仅在非 production 语义下也照常注入（dev 与 build 行为一致）。
+- scope 属性在 dev 与 build 行为一致（都会照常注入）。
 
 ## License
 

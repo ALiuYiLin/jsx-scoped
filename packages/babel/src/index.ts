@@ -88,7 +88,40 @@ function looksLikeDomElement(name: JsxOpeningElementLike['name']): boolean {
 }
 
 /**
- * Babel 插件入口：给 JSX 元素注入 data-v-{hash} scope 属性。
+ * 判断是否为「自定义组件标签」：大写开头标识符（<Child />）
+ * 或成员表达式（<UI.Button />）。
+ */
+function isCustomComponentTag(name: JsxOpeningElementLike['name']): boolean {
+  if (name?.type === 'JSXIdentifier') {
+    return /^[A-Z]/.test(name.name ?? '')
+  }
+  return name?.type === 'JSXMemberExpression'
+}
+
+/** 追加或覆盖某个 JSX 属性（同名覆盖，避免重复添加） */
+function upsertJsxAttribute(
+  attributes: JsxAttributeLike[],
+  attrName: string,
+  value: unknown,
+  types: NonNullable<JsxScopedBabelApi['types']>,
+): void {
+  const existing = attributes.find(
+    (attr) =>
+      attr.type === 'JSXAttribute' &&
+      attr.name.type === 'JSXIdentifier' &&
+      attr.name.name === attrName,
+  )
+  if (existing) {
+    existing.value = value
+  } else {
+    attributes.push(
+      types.jsxAttribute(types.jsxIdentifier(attrName), value) as JsxAttributeLike,
+    )
+  }
+}
+
+/**
+ * Babel 插件入口：给 JSX 元素注入 scope 属性。
  *
  * 用法（babel 配置或 @babel/core 编程式）：
  * ```js
@@ -99,9 +132,12 @@ function looksLikeDomElement(name: JsxOpeningElementLike['name']): boolean {
  *
  * 规则：
  *  - 跳过 <Fragment>（JSXFragment 天然不在此 visitor）、文本节点、<style> 标签；
- *  - 默认只给 DOM 元素标签（div/span/…）注入；自定义组件（<Foo />）可通过
- *    addToComponents: true 一并注入（data-* 属性会被当作普通 props 透传）；
- *  - 若元素已存在同名属性，用生成的 scope 属性覆盖。
+ *  - DOM 元素标签（div/span/…）：注入 `data-v-{hash}` 属性；
+ *  - 自定义组件标签（<Child />、<UI.Button />）：默认注入
+ *    `<Child scopedId="data-v-{hash}">`（组件 scoped，可用
+ *    componentScoped: false 关闭）。子组件若需要，可自行读取 scopedId 并绑定到
+ *    根元素上，父组件 scoped 样式才能命中子组件根元素；
+ *  - 元素已存在同名属性时，用生成的 scope 属性覆盖。
  */
 export default function jsxScopedBabelPlugin(
   api: JsxScopedBabelApi,
@@ -115,6 +151,9 @@ export default function jsxScopedBabelPlugin(
     throw new Error('[@10coding/plugin-jsx-scoped] 需要 @babel/core >= 7.13（api.types 缺失）')
   }
 
+  const componentScoped = options.componentScoped ?? true
+  const scopedIdAttributeName = options.scopedIdAttributeName ?? 'scopedId'
+
   return {
     name: '@10coding/plugin-jsx-scoped',
     visitor: {
@@ -126,27 +165,24 @@ export default function jsxScopedBabelPlugin(
         // 跳过 <style>（含 <style scoped>，内联样式由上层流水线处理，不注入属性）
         if (isJsxIdentifierName(name, 'style')) return
 
-        // 默认只处理 DOM 元素
-        if (!options.addToComponents && !looksLikeDomElement(name)) return
-
         const attributes = opening.attributes
-        const existing = attributes.find(
-          (attr) =>
-            attr.type === 'JSXAttribute' &&
-            attr.name.type === 'JSXIdentifier' &&
-            attr.name.name === scopeAttr,
-        )
 
-        if (existing) {
-          // 同名属性已存在：以生成的 scope 属性覆盖
-          existing.value = types.stringLiteral('')
-        } else {
-          attributes.push(
-            types.jsxAttribute(
-              types.jsxIdentifier(scopeAttr),
-              types.stringLiteral(''),
-            ) as JsxAttributeLike,
-          )
+        if (isCustomComponentTag(name)) {
+          // 组件 scoped：默认注入 scopedId="data-v-{hash}"，子组件自行取用
+          if (componentScoped) {
+            upsertJsxAttribute(
+              attributes,
+              scopedIdAttributeName,
+              types.stringLiteral(scopeAttr),
+              types,
+            )
+          }
+          return
+        }
+
+        // DOM 元素：注入完整 scope 属性
+        if (looksLikeDomElement(name)) {
+          upsertJsxAttribute(attributes, scopeAttr, types.stringLiteral(''), types)
         }
       },
     },

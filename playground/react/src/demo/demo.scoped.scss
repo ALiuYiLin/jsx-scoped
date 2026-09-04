@@ -52,3 +52,14 @@ $demo-radius: 14px;
 .demo__pulse {
   animation: jsx-scoped-pulse 2.4s ease-in-out infinite;
 }
+
+// 组件 scoped：命中子组件根元素（需子组件自行把父级 scopedId 绑到根元素上）
+.scoped-root {
+  width: 200px;
+  padding: 12px;
+  border-left: 4px solid $jsx-scoped-brand;
+  background: rgba(79, 70, 229, 0.06);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #334155;
+}

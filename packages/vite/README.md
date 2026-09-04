@@ -51,8 +51,31 @@ interface JsxScopedViteOptions {
   warnMultiScopedImport?: boolean
   /** scope hash 位数（md5(组件绝对路径) 截取），默认 8 */
   scopeHashLength?: number
+  /**
+   * 组件 scoped：默认 true。
+   * 给自定义组件标签注入 <Child scopedId="data-v-{hash}">；
+   * 设为 false 则自定义组件标签不被注入任何属性。
+   */
+  componentScoped?: boolean
+  /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
+  scopedIdAttributeName?: string
 }
 ```
+
+## 组件 scoped（child-root 继承）
+
+默认开启。自定义组件标签会收到 `scopedId="data-v-<parentHash>"`，子组件
+**按需**自行绑定到根元素，父组件 scoped 样式即可命中子组件根元素
+（等价 Vue scoped 的 child-root 继承父级 scope id）：
+
+```tsx
+// Child.tsx —— 需要继承父级 scope 时手动绑定
+export default function Child({ scopedId }: { scopedId?: string }) {
+  return <div className="child-root" {...(scopedId ? { [scopedId]: '' } : {})}>…</div>
+}
+```
+
+不需要继承的组件忽略该 prop 即可，零成本。
 
 ## 行为与边界
 
