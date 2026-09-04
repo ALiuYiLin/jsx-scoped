@@ -6,7 +6,8 @@
 - 组件内所有 JSX DOM 元素自动注入唯一属性 `data-v-xxxxxxxx`；
 - 组件关联的 `*.scoped.{css,scss,sass,less}` 样式与内联 `<style scoped>`，
   所有选择器自动追加 `[data-v-xxxxxxxx]`；
-- 支持外部样式导入 + 内联 `<style scoped>`，支持 css / scss / sass / less。
+- 支持外部样式导入 + 内联 `<style scoped>`（含 `lang="scss"/"less"/...`），
+  支持 css / scss / sass / less。
 
 ## 仓库结构（pnpm monorepo + tsup）
 
@@ -30,7 +31,8 @@ pnpm build:demo     # 生产构建示例
 ```
 
 React 示例包含：外部 `*.scoped.scss`、外部 `*.scoped.less`、外部 `*.scoped.css`、
-组件内联 `<style scoped>`、全局非 scoped css，以及一个构建期 warning
+组件内联 `<style scoped>`（纯 css）与 `<style scoped lang="scss">`（sass 嵌套）、
+全局非 scoped css，以及一个构建期 warning
 （同一组件导入多个 scoped 资源时提示书写顺序可能互相覆盖）。
 
 ## 在项目里使用
@@ -91,6 +93,63 @@ export default function Demo() {
 }
 @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } } // keyframes 帧选择器不会被追加
 ```
+
+## 内联 `<style scoped>` 样式隔离用法
+
+内联样式与外部 `*.scoped.*` 完全等价：同样以组件文件路径生成 scope hash；
+`<style scoped>` 标签会在编译期被**提取并移除**（不会渲染成真实 `<style>` 节点），
+样式由 Vite css 管线注入（dev 注入 + HMR、build 抽取进 css 产物）。
+
+```tsx
+export default function Demo() {
+  return (
+    <section className="demo">
+      {/* 写法一：纯 css —— 不需要写 lang */}
+      <style scoped>{`
+        .demo__tip { color: teal; }
+        .demo__tip::before { content: '◆ '; }
+      `}</style>
+
+      {/* 写法二：scss 嵌套 —— 必须声明 lang="scss" */}
+      <style scoped lang="scss">{`
+        .panel {
+          padding: 8px;
+          .panel__title { font-weight: 700; } // 嵌套由 sass 先编译展开
+          &:hover { border-color: #4f46e5; }
+        }
+      `}</style>
+
+      {/* 写法三：less */}
+      <style scoped lang="less">{`
+        @brand: #0ea5e9;
+        .badge { color: @brand; }
+      `}</style>
+    </section>
+  )
+}
+```
+
+### 识别规则
+
+| 写法 | 处理方式 |
+| --- | --- |
+| `<style scoped>` | ✅ 按 **css** 处理（lang 缺省） |
+| `<style scoped lang="scss">` / `"sass"` / `"less"` / `"css"` | ✅ 先由对应预处理器编译成普通 CSS，再追加 `[data-v-{hash}]` |
+| `<style ...>`（不带 `scoped`） | ❌ 不进入 scoped 流水线，原样留在 JSX 中 |
+| `lang` 与 `scoped` 顺序任意、大小写不敏感 | ✅ |
+| `lang={'scss'}`（表达式写法） | ⚠️ 不识别，会按 css 处理（lang 需为字符串字面量） |
+
+### 约束
+
+- **触发条件 = 属性名 `scoped` 存在**（与 Vue 布尔属性语义一致，不看值）。
+  请直接写 `scoped`，不要写 `scoped={false}`——属性存在即视为开启。
+- 内容必须为**静态文本**：直接写文本，或用 `{'字符串'}` / 无插值模板字符串包一层；
+  含 JS 表达式插值会在构建期直接报错。
+- 同一组件里外部 `*.scoped.*` 与内联 `<style scoped>` 可以混用，全部复用同一
+  `data-v-{hash}`；当 scoped 资源超过 1 个时输出书写顺序/优先级互相覆盖的
+  构建警告（`warnMultiScopedImport: false` 可关）。
+- `lang` 决定预处理方式：`scss`→sass、`sass`→sass 缩进语法、`less`→less，
+  未知/缺省一律按 css。
 
 ## 处理流程（分阶段）
 
@@ -183,10 +242,11 @@ export default function Child({ scopedId }: { scopedId?: string }) {
 - 样式隔离只作用于「本文件里书写的 JSX 元素」。跨文件组件内部 DOM 默认不带
   父组件 scope 属性；需要时用上面的 `scopedId` 手动把父级 scope 绑到子组件
   **根元素**（React 无法像 Vue 那样自动透传，因此由用户按需绑定）。
-- scoped css 文件里的相对 `url(...)` / css `@import` 以虚拟模块路径为基准，
-  可能无法正确解析；**推荐资源引用走绝对路径或放入 scoped 文件同目录并经过
-  Vite 资源管线处理的常规方式**（scss/less 的 `@import` 由编译器内联，不受影响）。
-- `<style scoped>` 内容需为静态文本（不支持 JS 表达式插值）。
+- 内联 `<style scoped>` / scoped css 文件里的相对 `url(...)`、css `@import`
+  以虚拟模块路径为基准，可能无法正确解析；**推荐资源引用走绝对路径或经
+  Vite 资源管线处理**（scss/less 的 `@import` 由编译器内联，不受影响）。
+- 内联 `<style scoped>` 内容需为静态文本（不支持 JS 表达式插值），
+  `lang` 需为字符串字面量（如 `lang="scss"`）。
 - scope 属性在 dev 与 build 行为一致（都会照常注入）。
 
 ## License
