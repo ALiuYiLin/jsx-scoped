@@ -24,7 +24,11 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node scripts/verify.mjs"
+    "test": "pnpm build && node scripts/verify.mjs",
+    "prepublishOnly": "pnpm build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "postcss": "^8.5.1",

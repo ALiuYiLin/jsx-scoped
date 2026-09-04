@@ -35,6 +35,24 @@ React 示例包含：外部 `*.scoped.scss`、外部 `*.scoped.less`、外部 `*
 全局非 scoped css，以及一个构建期 warning
 （同一组件导入多个 scoped 资源时提示书写顺序可能互相覆盖）。
 
+## 发布（changesets）
+
+三个可发布包（`@10coding/plugin-jsx-scoped`、`@10coding/postcss-jsx-scoped`、
+`@10coding/vite-plugin-jsx-scoped`）用 [changesets](https://github.com/changesets/changesets)
+管理版本与发布；示例应用为 private 包，不参与版本号变更与发布。
+
+```bash
+pnpm changeset           # 1. 选择受影响包并描述变更（生成 .changeset/*.md）
+pnpm version:packages    # 2. 消费变更集：升版本 + 生成各包 CHANGELOG.md
+git commit               # 3. 提交版本变更
+pnpm release             # 4. 预构建后发布（pnpm build && changeset publish，自动打 git tag）
+```
+
+- 三个包的 `prepublishOnly: pnpm build` 保证发布前先出 dist（预构建）；
+  `pnpm publish:packages`（`pnpm -r publish`）等价入口，同样会先执行各包预构建。
+- 配置见 `.changeset/config.json`：`access: public`（`@10coding` scope 需公开发布）、
+  `baseBranch: master`；发布需要 npm 仓库凭据（如 `NPM_TOKEN` 环境变量）。
+
 ## 在项目里使用
 
 ```ts
