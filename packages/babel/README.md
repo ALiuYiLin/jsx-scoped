@@ -19,6 +19,10 @@
 - **组件 scoped（默认自动开启）**：自定义组件标签注入
   `<Child scopedId="data-v-3f2a9c1d">`，子组件需要时自行读取 scopedId
   并绑定到根元素（child-root 继承父级 scope id）；`componentScoped: false` 关闭
+- **变量当标签（direct-scoped marker）**：运行时会渲染成原生 DOM 标签的大写组件
+  （如 `const Comp: any = tag || (href ? 'a' : 'button')`），加 `<Comp direct-scoped />`
+  即按普通 DOM 元素注入 `data-v-{hash}=""`（不再走 scopedId）；marker 为编译期
+  指令，会从产物移除，可用 `directScopedAttributeName` 自定义
 - 元素已存在同名属性时自动覆盖，不会重复添加
 - 附带独立的 hash 工具函数，供 vite/postcss 包复用
 
@@ -112,6 +116,33 @@ export default function Child({ scopedId }: { scopedId?: string }) {
 .child-root { border-left: 4px solid #4f46e5; }
 ```
 
+### 变量当标签：`<Comp direct-scoped />`
+
+当大写组件在**运行时其实是原生 DOM 标签**时（比如变量决定标签名），scopedId
+语义不适用——该标签不会经组件转发属性到 DOM。这种情况加一个 marker，让插件
+把它当普通 DOM 元素处理：直接注入 `data-v-{hash}=""`，不再注入 scopedId。
+
+```tsx
+// 变量可能是真实组件，也可能是 'a'/'button' 这类原生标签字符串
+const Comp: any = tag || (href ? 'a' : 'button')
+
+export default function Demo() {
+  return (
+    // direct-scoped：告诉插件「这是个原生标签」，注入 data-v-xxx=""；
+    // marker 是编译期指令，会从产物里移除（不会作为 prop 传给运行时）
+    <Comp direct-scoped className="vp-button">
+      按钮
+    </Comp>
+  )
+}
+```
+
+- 大写组件、成员表达式组件（`<UI.Button direct-scoped />`）均可；
+- 原生标签上写 marker 无意义（静默忽略并移除）；
+- 属性名可通过 `directScopedAttributeName` 自定义；
+- 强类型组件会对未知 marker 属性报 TS 错——该写法面向 `any`/宽松 props 的
+  变量标签场景，必要时用 `as any`。
+
 ## 配置项
 
 ```ts
@@ -132,6 +163,8 @@ interface JsxScopedBabelOptions {
   componentScoped?: boolean
   /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
   scopedIdAttributeName?: string
+  /** 「变量当标签」marker 属性名，默认 'direct-scoped' */
+  directScopedAttributeName?: string
 }
 ```
 

@@ -121,6 +121,14 @@ export interface JsxScopedViteOptions {
    */
   scopedIdAttributeName?: string
   /**
+   * 「变量当标签」marker 属性名（透传给 babel 插件）。
+   * 大写组件标签实际渲染成原生 DOM 标签时（如变量持有 'a'/'button'），
+   * 在该标签上加默认名为 `direct-scoped` 的 marker，即按普通 DOM 元素处理：
+   * 直接注入 `data-v-{hash}=""`、不再注入 scopedId。
+   * @default 'direct-scoped'
+   */
+  directScopedAttributeName?: string
+  /**
    * 会话级共享状态 registry。
    *
    * 多个 JsxScopedPipeline / Vite 插件实例可以通过传入同一个 registry 共享
@@ -479,6 +487,7 @@ export class JsxScopedPipeline {
               scopeAttr,
               componentScoped: this.options.componentScoped,
               scopedIdAttributeName: this.options.scopedIdAttributeName,
+              directScopedAttributeName: this.options.directScopedAttributeName,
             },
           ],
           [

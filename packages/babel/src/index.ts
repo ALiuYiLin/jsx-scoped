@@ -98,7 +98,9 @@ function isCustomComponentTag(name: JsxOpeningElementLike['name']): boolean {
   return name?.type === 'JSXMemberExpression'
 }
 
-/** 追加或覆盖某个 JSX 属性（同名覆盖，避免重复添加） */
+/**
+ * 追加或覆盖某个 JSX 属性（同名覆盖，避免重复添加）
+ */
 function upsertJsxAttribute(
   attributes: JsxAttributeLike[],
   attrName: string,
@@ -120,6 +122,22 @@ function upsertJsxAttribute(
   }
 }
 
+/** 找到并移除指定名字的属性（marker 等编译期指令），返回是否存在 */
+function takeJsxAttribute(
+  attributes: JsxAttributeLike[],
+  attrName: string,
+): boolean {
+  const index = attributes.findIndex(
+    (attr) =>
+      attr.type === 'JSXAttribute' &&
+      attr.name.type === 'JSXIdentifier' &&
+      attr.name.name === attrName,
+  )
+  if (index < 0) return false
+  attributes.splice(index, 1)
+  return true
+}
+
 /**
  * Babel 插件入口：给 JSX 元素注入 scope 属性。
  *
@@ -137,6 +155,12 @@ function upsertJsxAttribute(
  *    `<Child scopedId="data-v-{hash}">`（组件 scoped，可用
  *    componentScoped: false 关闭）。子组件若需要，可自行读取 scopedId 并绑定到
  *    根元素上，父组件 scoped 样式才能命中子组件根元素；
+ *  - 「变量当标签」场景：组件运行时会渲染成原生 DOM 标签时
+ *    （如 `const Comp: any = tag || (href ? 'a' : 'button')`，`<Comp ... />`），
+ *    可在该大写组件标签上加 marker `<Comp direct-scoped />`（属性名可用
+ *    directScopedAttributeName 配置），让插件把它当普通 DOM 元素处理——
+ *    直接注入 `data-v-{hash}=""`，不再注入 scopedId。marker 是编译期指令，
+ *    会从产物中移除，不会作为 prop 传给运行时；
  *  - 元素已存在同名属性时，用生成的 scope 属性覆盖。
  */
 export default function jsxScopedBabelPlugin(
@@ -153,6 +177,7 @@ export default function jsxScopedBabelPlugin(
 
   const componentScoped = options.componentScoped ?? true
   const scopedIdAttributeName = options.scopedIdAttributeName ?? 'scopedId'
+  const directScopedAttributeName = options.directScopedAttributeName ?? 'direct-scoped'
 
   return {
     name: '@10coding/plugin-jsx-scoped',
@@ -167,7 +192,16 @@ export default function jsxScopedBabelPlugin(
 
         const attributes = opening.attributes
 
+        // direct-scoped marker：编译期指令，从产物中移除；
+        // 命中的大写组件按 DOM 元素处理（直接注入 data-v-{hash}）
+        const directScoped = takeJsxAttribute(attributes, directScopedAttributeName)
+
         if (isCustomComponentTag(name)) {
+          if (directScoped) {
+            // 变量组件实际渲染成原生标签：注入完整 scope 属性
+            upsertJsxAttribute(attributes, scopeAttr, types.stringLiteral(''), types)
+            return
+          }
           // 组件 scoped：默认注入 scopedId="data-v-{hash}"，子组件自行取用
           if (componentScoped) {
             upsertJsxAttribute(
@@ -180,7 +214,7 @@ export default function jsxScopedBabelPlugin(
           return
         }
 
-        // DOM 元素：注入完整 scope 属性
+        // DOM 元素：注入完整 scope 属性（marker 在 DOM 上无意义，已移除）
         if (looksLikeDomElement(name)) {
           upsertJsxAttribute(attributes, scopeAttr, types.stringLiteral(''), types)
         }

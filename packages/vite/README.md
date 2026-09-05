@@ -82,6 +82,8 @@ interface JsxScopedViteOptions {
   componentScoped?: boolean
   /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
   scopedIdAttributeName?: string
+  /** 「变量当标签」marker 属性名，默认 'direct-scoped' */
+  directScopedAttributeName?: string
 }
 ```
 

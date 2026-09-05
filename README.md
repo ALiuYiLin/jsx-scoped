@@ -241,6 +241,8 @@ interface JsxScopedViteOptions {
   componentScoped?: boolean
   /** 注入到自定义组件标签上的属性名，默认 'scopedId' */
   scopedIdAttributeName?: string
+  /** 「变量当标签」marker 属性名，默认 'direct-scoped' */
+  directScopedAttributeName?: string
 }
 ```
 
@@ -270,6 +272,20 @@ export default function Child({ scopedId }: { scopedId?: string }) {
 
 这样父组件的 scoped 样式可以命中子组件根元素（同 Vue scoped 的 child-root
 语义；子组件内部其它 DOM 仍由子组件自身 scope 决定）。
+
+### 变量当标签：`<Comp direct-scoped />`
+
+大写组件在**运行时实际渲染成原生 DOM 标签**时（如
+`const Comp: any = tag || (href ? 'a' : 'button')`，最终是 `'a'/'button'`），
+scopedId 语义不适用。给该标签加 marker 即可按普通 DOM 处理：
+
+```tsx
+<Comp direct-scoped className="vp-button">按钮</Comp>
+// → 产物：<Comp data-v-xxxxxxxx="" className="vp-button">…  （marker 已移除）
+```
+
+marker 为编译期指令、不泄漏为 prop；属性名可经 `directScopedAttributeName`
+配置。详见 [packages/babel/README.md](./packages/babel/README.md#变量当标签comp-direct-scoped-)。
 
 ## 已知限制（v1）
 

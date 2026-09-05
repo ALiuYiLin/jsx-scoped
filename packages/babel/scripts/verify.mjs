@@ -99,6 +99,54 @@ assert.equal(
 assert.match(out4b, new RegExp(`scopedId="${scopeAttr}"`), 'scopedId 值应被覆盖为 scopeAttr')
 assert.doesNotMatch(out4b, /data-v-00000000/, '旧的 scopedId 值应被替换')
 
+// ---------- 4c. direct-scoped：变量组件当普通 DOM 标签处理 ----------
+const directCode = `
+const CompLink: any = tag || (href ? 'a' : 'button')
+export default function Demo() {
+  return (
+    <div>
+      <CompLink direct-scoped className="btn" />
+      <UI.Btn direct-scoped />
+      <Comp />
+      <div direct-scoped>marker on native tag</div>
+    </div>
+  )
+}
+`
+const out4c = transform(directCode)
+// 命中 marker：直接注入 data-v、不注入 scopedId、marker 从产物移除
+assert.match(
+  out4c,
+  new RegExp(`<CompLink [^>]*data-v-[0-9a-f]{8}`),
+  '带 marker 的变量组件注入 data-v',
+)
+assert.doesNotMatch(out4c, /<CompLink [^>]*scopedId/, '带 marker 的变量组件不注入 scopedId')
+assert.match(
+  out4c,
+  /<CompLink [^>]*className="btn" [^>]*data-v-[0-9a-f]{8}|<CompLink [^>]*data-v-[0-9a-f]{8} [^>]*className="btn"/,
+  '原有 props 保留',
+)
+assert.match(
+  out4c,
+  new RegExp(`<UI\\.Btn [^>]*data-v-[0-9a-f]{8}`),
+  '成员表达式组件加 marker 同样按 DOM 处理',
+)
+assert.doesNotMatch(out4c, /direct-scoped/, 'marker 从产物移除（不泄漏为 prop/属性）')
+// 无 marker 的大写组件保持组件 scoped 语义
+assert.match(out4c, /<Comp [^>]*scopedId=/, '无 marker 的组件仍走组件 scoped 路径')
+// marker 出现在原生标签上：无意义但不泄漏、DOM 照常注入
+assert.match(out4c, /<div [^>]*data-v-[0-9a-f]{8}/, 'DOM 元素照常注入')
+
+// ---------- 4d. directScopedAttributeName 可自定义 ----------
+const out4d = transform(directCode, { directScopedAttributeName: 'as-native' })
+assert.match(
+  out4d,
+  new RegExp(`<CompLink [^>]*data-v-[0-9a-f]{8}`),
+  '自定义 marker 名生效',
+)
+assert.doesNotMatch(out4d, /as-native/, '自定义 marker 同样被移除')
+assert.match(out4d, /direct-scoped/, '默认名 direct-scoped 不再被识别，作为普通属性保留')
+
 // ---------- 5. 显式 scopeAttr / scopeHash 优先 ----------
 const out5 = transform(`const a = <div />`, { scopeAttr: 'data-v-custom' })
 assert.match(out5, /data-v-custom/, '显式 scopeAttr 应生效')

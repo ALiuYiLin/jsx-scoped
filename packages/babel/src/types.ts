@@ -34,6 +34,17 @@ export interface JsxScopedBabelOptions {
    * @default 'scopedId'
    */
   scopedIdAttributeName?: string
+  /**
+   * 「变量当标签」marker 属性名。
+   *
+   * 当大写组件标签实际渲染成原生 DOM 标签时（如
+   * `const Comp: any = tag || (href ? 'a' : 'button')` 后写 `<Comp />`），
+   * 在该标签上加 marker（默认 `<Comp direct-scoped />`）即可让插件把它当普通
+   * DOM 元素处理：直接注入 `data-v-{hash}=""`，不再注入 scopedId。
+   * marker 为编译期指令，会从产物中移除。
+   * @default 'direct-scoped'
+   */
+  directScopedAttributeName?: string
 }
 
 /** babel 插件会注入的最小 api 形状（避免对外依赖 @babel/core 类型） */
