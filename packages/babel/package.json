@@ -1,6 +1,6 @@
 {
   "name": "@10coding/plugin-jsx-scoped",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Babel plugin for Vue-like scoped styles in JSX/TSX: computes a data-v-{hash} from the component file path and injects the attribute into JSX elements",
   "license": "MIT",
   "type": "module",
