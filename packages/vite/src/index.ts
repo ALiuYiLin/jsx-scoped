@@ -47,12 +47,38 @@ export default function jsxScopedVitePlugin(
 ): Plugin {
   const pipeline: JsxScopedPipeline = createJsxScopedPipeline(options)
 
+  // registry 是否由调用方显式传入:是则生命周期归调用方,插件不做自动清理;
+  // 否则(默认单例 / isolated 自建)本插件的生命周期结束时自动 dispose,
+  // 避免长驻进程里会话状态(文件归属/HMR 映射/内联登记)跨任务残留。
+  const externallyOwnedRegistry = options.registry != null
+
+  function disposeRegistryIfOwned(): void {
+    if (!externallyOwnedRegistry) {
+      pipeline.registry.dispose()
+    }
+  }
+
   return {
     name: '@10coding/vite-plugin-jsx-scoped',
     enforce: 'pre',
 
     configResolved(resolved) {
       pipeline.bindViteConfig(resolved)
+    },
+
+    // dev:server 关闭时清理(仅当 registry 非外部显式传入)
+    configureServer(server) {
+      server.httpServer?.once('close', () => {
+        disposeRegistryIfOwned()
+      })
+    },
+
+    // build:一次构建结束后清理(仅当 registry 非外部显式传入)。
+    // watch 模式(build --watch)下每轮 rebuild 都会触发 closeBundle,
+    // 跳过以免每轮都清空会话状态;watch 进程结束由进程退出兜底回收。
+    async closeBundle() {
+      if (this.meta.watchMode) return
+      disposeRegistryIfOwned()
     },
 
     resolveId(source) {

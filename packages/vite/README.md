@@ -162,6 +162,13 @@ const css = await pipeline.load(result.virtualIds[0]) // 已追加 [data-v-{hash
 - **需要隔离时**：传 `registry: createJsxScopedRegistry()`（自建一份全新状态，
   可与其它实例显式共享同一份），或开 `isolated: true`（本实例独占全新状态，
   适合并行测试/多份互不干扰的编译）。优先级：`registry` > `isolated` > 默认单例；
+- **会话结束请清理**：registry 持有全部会话状态（文件归属 / HMR 失效映射 /
+  内联登记 / 提示去重），默认不自动清空。Vite 插件会在 dev server `close` 与
+  单次 build（`closeBundle`，watch 模式除外）后自动 `dispose()` 其**自建**的
+  registry（显式传入 `options.registry` 时生命周期归调用方，插件不自动清理）。
+  编程式/测试场景在 teardown 手动调用 `pipeline.registry.reset()`（`dispose()`
+  是语义别名）。清空后旧虚拟 id 无法 load（得到友好错误）；Map/Set 引用保留，
+  实例可继续复用。注意：仅在没有其它活跃会话共享同一 registry 时清理；
 - 外部的 css 产物若要享受 dev 注入 + HMR + build 抽取，需让产物代码 import 上述
   `virtualIds`，且本插件在该 Vite 应用中以相同选项注册（`resolveId`/`load`
   由它提供）。

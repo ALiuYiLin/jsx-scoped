@@ -20,6 +20,18 @@ export type { AdditionalData }
  *
  * 通常无需手动构造,直接用 {@link createJsxScopedRegistry} 新建,
  * 或通过默认单例 {@link getDefaultJsxScopedRegistry} 参与进程级共享。
+ *
+ * 生命周期:registry 持有全部会话状态,默认不自动清理;当该 registry 对应
+ * 的「会话/任务」结束(dev server close、一次 build 完成、测试 teardown、或
+ * 换下一份互不干扰的编译)时,应调用 {@link JsxScopedRegistry.reset} /
+ * {@link JsxScopedRegistry.dispose} 清空,避免:
+ *  - cssOwners 残留导致「文件已删除/改名后新组件导入同一 scoped css」误报
+ *    多组件共享;
+ *  - 长驻进程(dev 长会话、vitepress 页面的增删改、同进程多套构建/测试)中
+ *    状态持续累积。
+ *
+ * 注意:reset/dispose 会清空共享它的所有实例的会话状态——仅在没有其它活跃
+ * 会话仍使用该 registry 时调用;多会话并存请各自持有独立 registry。
  */
 export interface JsxScopedRegistry {
   /** cssRealPath(归一化) → componentFilePath:用于多组件共享校验 */
@@ -32,6 +44,17 @@ export interface JsxScopedRegistry {
   inlineSourcesByComponent: Map<string, ScopedInlineStyle[]>
   /** 去重提示 key(避免 HMR 反复 transform 时刷屏) */
   warnedKeys: Set<string>
+  /**
+   * 清空全部会话状态,使 registry 回到全新状态(保留 Map/Set 引用本身,
+   * 已持有该 registry 的实例可继续复用)。
+   */
+  reset(): void
+  /**
+   * reset 的别名,语义为「本 registry 不再使用」。
+   * Vite 插件在 dev server close / build(closeBundle)时自动调用;测试与
+   * 编程式调用方在 teardown 时手动调用。
+   */
+  dispose(): void
 }
 
 /**
@@ -39,13 +62,23 @@ export interface JsxScopedRegistry {
  * 需要隔离状态(并行测试、多份互不干扰的编译)时用此新建再传入 options.registry。
  */
 export function createJsxScopedRegistry(): JsxScopedRegistry {
-  return {
+  const registry: JsxScopedRegistry = {
     cssOwners: new Map<string, string>(),
     virtualModulesByCss: new Map<string, string[]>(),
     inlineModulesByComponent: new Map<string, string[]>(),
     inlineSourcesByComponent: new Map<string, ScopedInlineStyle[]>(),
     warnedKeys: new Set<string>(),
+    reset: () => clear(),
+    dispose: () => clear(),
   }
+  function clear(): void {
+    registry.cssOwners.clear()
+    registry.virtualModulesByCss.clear()
+    registry.inlineModulesByComponent.clear()
+    registry.inlineSourcesByComponent.clear()
+    registry.warnedKeys.clear()
+  }
+  return registry
 }
 
 /**
