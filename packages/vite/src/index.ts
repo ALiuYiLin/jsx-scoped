@@ -10,6 +10,7 @@ export type {
   AdditionalData,
   FileVirtualId,
   InlineVirtualId,
+  JsxScopedRegistry,
   JsxScopedViteOptions,
   ParsedVirtualId,
   SourceMapLike,
@@ -18,6 +19,8 @@ export type {
 export {
   JsxScopedPipeline,
   createJsxScopedPipeline,
+  createJsxScopedRegistry,
+  getDefaultJsxScopedRegistry,
   parseVirtualId,
 } from './pipeline'
 

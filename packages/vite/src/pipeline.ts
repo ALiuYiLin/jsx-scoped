@@ -15,6 +15,54 @@ import type { ResolvedConfig } from 'vite'
 export type { AdditionalData }
 
 /**
+ * 会话级共享状态集合(「scoped 文件归属」「HMR 失效映射」「内联样式登记」
+ * 「提示去重」),可在多个 {@link JsxScopedPipeline} / Vite 插件实例间共享。
+ *
+ * 通常无需手动构造,直接用 {@link createJsxScopedRegistry} 新建,
+ * 或通过默认单例 {@link getDefaultJsxScopedRegistry} 参与进程级共享。
+ */
+export interface JsxScopedRegistry {
+  /** cssRealPath(归一化) → componentFilePath:用于多组件共享校验 */
+  cssOwners: Map<string, string>
+  /** cssRealPath → 已生成的虚拟模块 id 列表(HMR 失效用) */
+  virtualModulesByCss: Map<string, string[]>
+  /** componentFilePath → 内联样式虚拟模块 id 列表(HMR 失效用) */
+  inlineModulesByComponent: Map<string, string[]>
+  /** componentFilePath → transform 时登记的 <style scoped> 内容(文档序) */
+  inlineSourcesByComponent: Map<string, ScopedInlineStyle[]>
+  /** 去重提示 key(避免 HMR 反复 transform 时刷屏) */
+  warnedKeys: Set<string>
+}
+
+/**
+ * 创建一个全新的、空的会话级 registry。
+ * 需要隔离状态(并行测试、多份互不干扰的编译)时用此新建再传入 options.registry。
+ */
+export function createJsxScopedRegistry(): JsxScopedRegistry {
+  return {
+    cssOwners: new Map<string, string>(),
+    virtualModulesByCss: new Map<string, string[]>(),
+    inlineModulesByComponent: new Map<string, string[]>(),
+    inlineSourcesByComponent: new Map<string, ScopedInlineStyle[]>(),
+    warnedKeys: new Set<string>(),
+  }
+}
+
+/**
+ * 进程级默认单例 registry(惰性复用,模块加载即创建)。
+ *
+ * 未显式传 `registry` 且未开启 `isolated` 的 {@link JsxScopedPipeline} 默认
+ * 共享此单例,从而让「transform 登记的内联样式」与「另一插件实例的虚拟 css
+ * load」跨插件上下文互通——这是 md→TSX 编译管线与站点 Vite 插件协作的基础。
+ */
+const DEFAULT_REGISTRY: JsxScopedRegistry = createJsxScopedRegistry()
+
+/** 获取进程级默认单例 registry(与所有未隔离实例共享) */
+export function getDefaultJsxScopedRegistry(): JsxScopedRegistry {
+  return DEFAULT_REGISTRY
+}
+
+/**
  * @10coding/vite-plugin-jsx-scoped 配置项
  */
 export interface JsxScopedViteOptions {
@@ -39,6 +87,28 @@ export interface JsxScopedViteOptions {
    * @default 'scopedId'
    */
   scopedIdAttributeName?: string
+  /**
+   * 会话级共享状态 registry。
+   *
+   * 多个 JsxScopedPipeline / Vite 插件实例可以通过传入同一个 registry 共享
+   * 「scoped 文件归属」「HMR 失效映射」「内联样式登记」等状态,典型场景:
+   * 编译管线 A(md→TSX 的 transform)与站点插件 B(虚拟 css 的 load)处于
+   * 不同的 Vite 插件上下文,需要 A.transform 登记的内联样式能被 B.load 读取。
+   *
+   * 与 `isolated` 互斥:同时提供时以 `registry` 为准。
+   */
+  registry?: JsxScopedRegistry
+  /**
+   * 是否使用全新的独立 registry(不共享进程级默认单例)。
+   *
+   * 缺省(false)时,未显式传入 `registry` 的实例共享
+   * {@link getDefaultJsxScopedRegistry} 的默认单例;`isolated: true` 则让
+   * 本实例独占一份全新状态,适用于需要完全隔离的并行/测试场景。
+   *
+   * 与 `registry` 互斥:同时提供时以 `registry` 为准。
+   * @default false
+   */
+  isolated?: boolean
 }
 
 /** Babel sourcemap 的最小公开形状(与 Vite 接受的 ExistingRawSourceMap 兼容) */
@@ -185,10 +255,15 @@ function pushMap(map: Map<string, string[]>, key: string, value: string): void {
  *    "重读磁盘组件文件",因此也适用于"源码并非磁盘原文件"的场景。
  *
  * 状态与生命周期:
- *  - 实例持有「scoped 文件归属」「HMR 失效映射」「内联样式登记」等会话级状态,
- *    生命周期 = 持有它的进程/插件实例(dev 会话内随 HMR 持续更新);
- *  - 因此调用方需保证:同一实例内传入的 componentFilePath 唯一且稳定
- *    (scope hash 与内联样式登记均以其为 key),跨实例不共享状态;
+ *  - 实例持有的「scoped 文件归属」「HMR 失效映射」「内联样式登记」「提示去重」
+ *    等会话级状态统一存放在 {@link JsxScopedRegistry} 中,生命周期 = registry
+ *    的持有者(dev 会话内随 HMR 持续更新);
+ *  - 默认(未传 `registry` / 未开 `isolated`)时实例共享进程级默认单例
+ *    {@link getDefaultJsxScopedRegistry},因此不同插件实例之间默认互通状态;
+ *    需要隔离时请传入 {@link createJsxScopedRegistry} 新建的 registry,
+ *    或开启 `isolated: true`;
+ *  - 调用方需保证:同一 registry 内传入的 componentFilePath 唯一且稳定
+ *    (scope hash 与内联样式登记均以其为 key);
  *  - 提示类信息(多资源覆盖、无法解析的导入、解析失败)以 `warnings` 数组随
  *    transform 结果返回;若实例已绑定 Vite config(通过 bindViteConfig),同时
  *    会写入 config.logger,外部编程式调用方可只消费返回值。
@@ -197,25 +272,19 @@ export class JsxScopedPipeline {
   readonly options: JsxScopedViteOptions
   readonly warnMultiScopedImport: boolean
   readonly scopeHashLength: number
+  /** 会话级共享状态(默认进程级单例;见 {@link createJsxScopedRegistry}) */
+  readonly registry: JsxScopedRegistry
 
   private config: ResolvedConfig | undefined
-
-  // cssRealPath(归一化) → componentFilePath:用于多组件共享报错
-  private readonly cssOwners = new Map<string, string>()
-  // cssRealPath → 已生成的虚拟模块 id 列表(HMR 失效用;每次该 css 被重新
-  // transform 时重建,避免 HMR 反复追加导致的重复)
-  private readonly virtualModulesByCss = new Map<string, string[]>()
-  // componentFilePath → 内联样式虚拟模块 id 列表(HMR 失效用)
-  private readonly inlineModulesByComponent = new Map<string, string[]>()
-  // componentFilePath → transform 时登记的 <style scoped> 内容(文档序)
-  private readonly inlineSourcesByComponent = new Map<string, ScopedInlineStyle[]>()
-  // 去重提示 key(避免 HMR 反复 transform 时刷屏)
-  private readonly warnedKeys = new Set<string>()
 
   constructor(options: JsxScopedViteOptions = {}) {
     this.options = options
     this.warnMultiScopedImport = options.warnMultiScopedImport ?? true
     this.scopeHashLength = options.scopeHashLength ?? 8
+    // registry 优先于 isolated(显式共享 > 全新隔离 > 进程级默认单例)
+    this.registry =
+      options.registry ??
+      (options.isolated ? createJsxScopedRegistry() : getDefaultJsxScopedRegistry())
   }
 
   /** Vite 插件在 configResolved 时调用,用于 css 预处理器上下文与日志 */
@@ -233,8 +302,8 @@ export class JsxScopedPipeline {
 
   /** 收集一条提示:去重 + 写入返回结果,并(若绑定 vite config)打印 */
   private collectWarn(warnings: string[], dedupeKey: string, message: string): void {
-    if (this.warnedKeys.has(dedupeKey)) return
-    this.warnedKeys.add(dedupeKey)
+    if (this.registry.warnedKeys.has(dedupeKey)) return
+    this.registry.warnedKeys.add(dedupeKey)
     warnings.push(message)
     this.printWarn(message)
   }
@@ -259,8 +328,8 @@ export class JsxScopedPipeline {
   /** 清理某组件的会话级登记(组件不再命中/解析失败时避免残留) */
   private clearComponentRegistrations(componentFilePath: string): void {
     const key = normalizePath(componentFilePath.split('?')[0] ?? componentFilePath)
-    this.inlineModulesByComponent.delete(key)
-    this.inlineSourcesByComponent.delete(key)
+    this.registry.inlineModulesByComponent.delete(key)
+    this.registry.inlineSourcesByComponent.delete(key)
   }
 
   /**
@@ -323,7 +392,7 @@ export class JsxScopedPipeline {
         )
         continue
       }
-      const previousOwner = this.cssOwners.get(cssRealPath)
+      const previousOwner = this.registry.cssOwners.get(cssRealPath)
       if (previousOwner && previousOwner !== normalizedComponent) {
         throw new Error(
           `[@10coding/vite-plugin-jsx-scoped] 构建错误:scoped 样式文件被多个组件共享。\n` +
@@ -333,14 +402,14 @@ export class JsxScopedPipeline {
             `规则:*.scoped.{css,scss,sass,less} 是组件私有资源,同一文件只允许被一个组件导入。`,
         )
       }
-      this.cssOwners.set(cssRealPath, normalizedComponent)
+      this.registry.cssOwners.set(cssRealPath, normalizedComponent)
 
       // 该 css 归属唯一组件:每次重跑 transform 都重建失效映射,避免重复 id
-      this.virtualModulesByCss.delete(cssRealPath)
+      this.registry.virtualModulesByCss.delete(cssRealPath)
       const virtual = makeFileVirtual(cssRealPath, normalizedComponent)
       scopedImportMap.set(external.specifier, virtual)
       virtualIds.push(virtual)
-      pushMap(this.virtualModulesByCss, cssRealPath, `\0${virtual}`)
+      pushMap(this.registry.virtualModulesByCss, cssRealPath, `\0${virtual}`)
     }
 
     // ---- 2) 多资源覆盖风险警告(同一 hash,书写顺序可能互相覆盖) ----
@@ -356,9 +425,9 @@ export class JsxScopedPipeline {
 
     // ---- 3) 登记内联样式(虚拟 css load 优先取此,不重读磁盘) ----
     if (analysis.inlineStyles.length > 0) {
-      this.inlineSourcesByComponent.set(normalizedComponent, analysis.inlineStyles)
+      this.registry.inlineSourcesByComponent.set(normalizedComponent, analysis.inlineStyles)
     } else {
-      this.inlineSourcesByComponent.delete(normalizedComponent)
+      this.registry.inlineSourcesByComponent.delete(normalizedComponent)
     }
 
     // ---- 4) babel:注入属性 + 改写导入 + 提取内联 style ----
@@ -401,9 +470,9 @@ export class JsxScopedPipeline {
         virtualIds.push(vid)
       }
       if (inlineVirtualIds.length > 0) {
-        this.inlineModulesByComponent.set(normalizedComponent, inlineVirtualIds)
+        this.registry.inlineModulesByComponent.set(normalizedComponent, inlineVirtualIds)
       } else {
-        this.inlineModulesByComponent.delete(normalizedComponent)
+        this.registry.inlineModulesByComponent.delete(normalizedComponent)
       }
 
       return {
@@ -461,7 +530,7 @@ export class JsxScopedPipeline {
 
     // 内联样式:先查 transform 登记表,回退到读磁盘组件文件实时提取
     let style: ScopedInlineStyle | undefined
-    const registered = this.inlineSourcesByComponent.get(parsed.componentFilePath)
+    const registered = this.registry.inlineSourcesByComponent.get(parsed.componentFilePath)
     if (registered) {
       style = registered[parsed.index]
     }
@@ -474,8 +543,8 @@ export class JsxScopedPipeline {
           throw new Error(
             `[@10coding/vite-plugin-jsx-scoped] 内联样式 ${rawId} 未命中 transform 登记,` +
               `且组件文件不存在: ${parsed.componentFilePath}。` +
-              `非磁盘来源的调用方请确保对同一 JsxScopedPipeline 实例执行过 ` +
-              `transform(含 <style scoped>)后再 load 其 virtualIds。`,
+              `非磁盘来源的调用方请确保已对共享同一 registry 的某个 JsxScopedPipeline ` +
+              `实例执行过 transform(含 <style scoped>)后再 load 其 virtualIds。`,
           )
         }
         throw error
@@ -507,8 +576,8 @@ export class JsxScopedPipeline {
   invalidationIds(file: string): string[] {
     const normalized = normalizePath(file)
     return [
-      ...(this.virtualModulesByCss.get(normalized) ?? []),
-      ...(this.inlineModulesByComponent.get(normalized) ?? []),
+      ...(this.registry.virtualModulesByCss.get(normalized) ?? []),
+      ...(this.registry.inlineModulesByComponent.get(normalized) ?? []),
     ]
   }
 }

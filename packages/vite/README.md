@@ -137,9 +137,31 @@ const css = await pipeline.load(result.virtualIds[0]) // 已追加 [data-v-{hash
 - 解析失败时 `enabled=false` 且带 `parseError` 字段；
 - `virtualIds` 不含 `\0` 前缀，可用导出的 `parseVirtualId(id)` 反解成
   `{ kind: 'file'|'inline', cssRealPath/componentFilePath, index }`；
-- **实例状态即会话状态**：内联样式登记、scoped 文件归属、HMR 失效映射均挂在
-  实例上（生命周期 = 持有它的进程/插件实例）。请对同一实例传入唯一且稳定的
-  `componentFilePath`；跨实例不共享任何状态；
+- **实例状态即会话状态，存在可共享的 registry 中**：内联样式登记、scoped 文件
+  归属、HMR 失效映射、提示去重统一存放在 `JsxScopedRegistry` 内。请对共享同一
+  registry 的实例传入唯一且稳定的 `componentFilePath`；
+- **跨实例共享（进程级默认单例）**：未显式传 `registry` 且未开 `isolated` 的实例
+  默认共享 `getDefaultJsxScopedRegistry()` 返回的进程级单例，因此「编译管线 A
+  的 `transform` 登记的内联样式」可被「另一插件实例 B 的 `load`」直接读取——这是
+  md→TSX 等生成代码场景下、核心编译管线与站点 Vite 插件分处不同插件上下文时的
+  协作基础：
+  ```ts
+  import {
+    createJsxScopedPipeline,
+    createJsxScopedRegistry,
+  } from '@10coding/vite-plugin-jsx-scoped'
+
+  // A: 编译管线（例如 vitepress md → TSX）
+  const core = createJsxScopedPipeline() // 共享默认单例
+  const { code, virtualIds } = core.transform(tsxText, '/abs/path/page.md')
+
+  // B: 站点 Vite 插件（同一进程内的另一实例）——无需同实例即可 load
+  const site = createJsxScopedPipeline() // 共享同一默认单例
+  const css = await site.load(virtualIds[0])
+  ```
+- **需要隔离时**：传 `registry: createJsxScopedRegistry()`（自建一份全新状态，
+  可与其它实例显式共享同一份），或开 `isolated: true`（本实例独占全新状态，
+  适合并行测试/多份互不干扰的编译）。优先级：`registry` > `isolated` > 默认单例；
 - 外部的 css 产物若要享受 dev 注入 + HMR + build 抽取，需让产物代码 import 上述
   `virtualIds`，且本插件在该 Vite 应用中以相同选项注册（`resolveId`/`load`
   由它提供）。
