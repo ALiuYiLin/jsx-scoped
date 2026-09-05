@@ -51,12 +51,18 @@ Solid 示例包含：外部 `*.scoped.scss` + 内联 `<style scoped lang="scss">
 `@10coding/vite-plugin-jsx-scoped`）用 [changesets](https://github.com/changesets/changesets)
 管理版本与发布；示例应用为 private 包，不参与版本号变更与发布。
 
+**一条命令发布**（`pnpm release` = 预构建 + 自动 version + publish）：
+
 ```bash
-pnpm changeset           # 1. 选择受影响包并描述变更（生成 .changeset/*.md）
-pnpm version:packages    # 2. 消费变更集：升版本 + 生成各包 CHANGELOG.md
-git commit               # 3. 提交版本变更
-pnpm release             # 4. 预构建后发布（pnpm build && changeset publish，自动打 git tag）
+pnpm changeset   # 1. 写变更集（.changeset/*.md）—— 之后随时可发布
+pnpm release     # 2. 预构建 → changeset version（消费 md、升版本、生成 CHANGELOG、
+                 #    自动 git commit）→ changeset publish（发 npm + 打 git tag）
 ```
+
+> 说明：`.changeset/*.md` 只是待发布清单，`changeset publish` 本身不消费它；
+> release 脚本内置了 `changeset version` 才会真正升版本。`commit: true` 让
+> version 自动提交（发布前请保持工作区干净）。若想手动分步（先审版本变更再发）：
+> `pnpm version:packages` 提交后，再执行 `pnpm build && changeset publish`。
 
 - 三个包的 `prepublishOnly: pnpm build` 保证发布前先出 dist（预构建）；
   `pnpm publish:packages`（`pnpm -r publish`）等价入口，同样会先执行各包预构建。

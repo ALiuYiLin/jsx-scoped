@@ -17,7 +17,7 @@
     "test": "pnpm --filter @10coding/plugin-jsx-scoped test && pnpm --filter @10coding/postcss-jsx-scoped test",
     "changeset": "changeset",
     "version:packages": "changeset version",
-    "release": "pnpm build && changeset publish",
+    "release": "pnpm build && changeset version && changeset publish",
     "publish:packages": "pnpm -r publish"
   },
   "devDependencies": {

@@ -5,17 +5,25 @@
 ## 流程
 
 ```bash
-pnpm changeset            # 1. 选择受影响的包并描述变更（生成 .changeset/*.md）
-pnpm version:packages     # 2. 消费变更集：自动升版本 + 生成各包 CHANGELOG.md
-git commit                # 3. 提交版本变更
-pnpm release              # 4. 预构建（pnpm build）后由 changesets 发布 + 打 git tag
+pnpm changeset   # 1. 选择受影响的包并描述变更（生成 .changeset/*.md）
+pnpm release     # 2. 一条命令：预构建 → changeset version（消费 md、升版本、
+                 #    生成 CHANGELOG、自动 git commit）→ changeset publish（发 npm + 打 tag）
+```
+
+`.changeset/*.md` 只是“待发布清单”，`changeset publish` 不会消费它；`pnpm release`
+内置了 `changeset version`，所以只要写了 md 即可直接发布。手动分步（先审版本再发）：
+
+```bash
+pnpm version:packages    # 消费变更集：升版本 + 生成各包 CHANGELOG.md（commit:true 自动提交）
+pnpm build && changeset publish   # 预构建后发布
 ```
 
 说明：
 
 - `.changeset/config.json`：`access: public`（@10coding scope 公开发布）、
-  `baseBranch: master`；私有示例包（`@10coding/example-react`）通过
-  `privatePackages.version/tag: false` 不参与版本号变更与 tag。
+  `commit: true`（version 自动提交，发布前请保持工作区干净）、`baseBranch: master`；
+  私有示例包（`@10coding/example-react` 等）通过 `privatePackages.version/tag: false`
+  不参与版本号变更与 tag。
 - 三个包在发布前都会执行各自的 `prepublishOnly: pnpm build`（预构建），
   直接 `pnpm -r publish` 亦会先构建再发布。
 - 发布需要 npm 仓库凭据（如环境变量 `NPM_TOKEN`），scope 为 `@10coding`，记得加
