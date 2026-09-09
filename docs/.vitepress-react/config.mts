@@ -5,13 +5,18 @@ import { defineConfig } from '@10coding/vitepress-react'
 export default defineConfig({
   title: 'jsx-scoped',
   description: 'Vue-like scoped styles for JSX/TSX —— babel / postcss / vite 三件套',
+  // GitHub Pages 项目页部署在 https://<user>.github.io/jsx-scoped/ 下，
+  // base 必须带仓库名前缀，否则 css/js 资源会 404（站内链接自动加此前缀）；
+  // 本地 dev/preview 需访问 /jsx-scoped/ 前缀路径
+  base: '/jsx-scoped/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: '首页', link: '/' },
+      // { text: '首页', link: '/' },
       { text: '指南', link: '/guide/getting-started' },
       { text: '示例', link: '/examples' },
-      { text: 'API 参考', link: '/reference/api' }
+      { text: 'API 参考', link: '/reference/api' },
+      { text: 'GitHub', link: 'https://github.com/ALiuYiLin/jsx-scoped' }
     ],
 
     sidebar: [
@@ -37,9 +42,9 @@ export default defineConfig({
       label: '页面导航'
     },
 
-    // 编辑本页 → 仓库
+    // 编辑本页 → 仓库（默认分支为 master）
     editLink: {
-      pattern: 'https://github.com/ALiuYiLin/jsx-scoped/edit/main/docs/:path',
+      pattern: 'https://github.com/ALiuYiLin/jsx-scoped/edit/master/docs/:path',
       text: '在 GitHub 上编辑此页面'
     },
 

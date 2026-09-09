@@ -1,67 +1,39 @@
 ---
-title: 示例：import 页面级 scoped 样式
-description: 在 Markdown 页面中通过 import './xx.scoped.css' 使用页面级 scoped 样式
+title: 示例：同名 .card 的 scoped 隔离
+description: 以 docs/demo 的四张同名 .card 卡片为例，演示组件级 scoped：父组件样式、子组件自带 scoped、手动继承父 scopedId、全局样式
 ---
 
-# 示例：页面级 scoped 样式
+# 示例：同名类的 scoped 隔离
 
-本站开启了 jsx-scoped（`markdownScopedCss: true` + `jsxScopedVitePlugin()`）。
-vitepress-react 会把 Markdown 编译成页面组件，所以在页面里 import 一个相对本页的
-`*.scoped.css`，样式就只作用于当前页面。
+这个案例来自 `docs/demo`：一个 `Demo` 组件里渲染了**四张类名完全相同**
+（`class="card"`）的卡片，分别来自四种样式来源：
+
+| 卡片 | 写法 | 样式来源 | 作用域 |
+| --- | --- | --- | --- |
+| 1 | 结构直接写在父组件里 | `demo.scoped.scss` | 父组件 hash |
+| 2 | 子组件 `ChildCard` | `child-card.scoped.css` | 子组件自身 hash |
+| 3 | 子组件 `InheritCard` | 无自带样式，逐层绑定父 `scopedId` | 继承父组件 hash |
+| 4 | 子组件 `GlobalCard` | `global.css`（不带 scoped） | 全局（选择器不改写） |
+
+style scoped 的含义：**当前文件里类名的样式只属于当前文件，不污染全局**。
+类名相同没关系 —— 每条规则都会被改写成带本文件 hash 的选择器
+（`.card[data-v-{hash}]`），DOM 上也只带属于自己文件的 `data-v-{hash}`，两者
+一一对应、互不干扰。若隔离不生效，四张同名卡会互相覆盖、渲染错乱；隔离生效
+时，谁命中谁不命中，一眼就能看出来。
+
+下方是真实渲染：页面 `<script>` 里 `import Demo from './demo/demo.tsx'`，直接
+把 `Demo` 当作页面组件渲染出来。
 
 <script>
-import './examples-scoped.scoped.css'
-import Demo from  './demo/demo.tsx'
+import Demo from './demo/demo.tsx'
 </script>
-
-## 实时效果
-
-把样式放进独立文件（文件名必须以 `.scoped.css` / `.scoped.scss` / `.scoped.sass`
-/ `.scoped.less` 结尾），再在页面的 `<script>` 里按相对本 md 的路径导入（下面
-这张卡片用的就是本页顶部已真实导入的 `./examples-scoped.scoped.css`）：
-
-**加粗文字**的 danger 色来自 `.vse-scoped-card strong`。元素检查可见卡片 DOM 带
-`data-v-xxxxxxxx`，编译后的选择器形如 `.vse-scoped-card[data-v-xxxxxxxx]` ——
-规则只命中本页，不会泄漏到其它页面。{.vse-scoped-card}
-
-## Markdown 写法
-
-```md
-<script>
-import './examples-scoped.scoped.css'
-</script>
-
-{.vse-scoped-card}
-
-**加粗文字**的 danger 色来自外部 scoped 文件。
-```
-
-## CSS 写法
-
-```css
-/* examples-scoped.scoped.css（与页面同目录） */
-.vse-scoped-card {
-  border: 2px dashed var(--vp-c-brand-2);
-  border-radius: 10px;
-  padding: 0.9rem 1.1rem;
-}
-
-.vse-scoped-card strong {
-  color: var(--vp-c-danger-1);
-}
-```
-
-作为对比：不带 scoped 的普通 CSS import 或全局样式不会改写选择器，作用于全站。
 
 <Demo />
 
 ## 完整源码（docs/demo）
 
-以下源码用 vitepress snippet（`<<< @/…`）直接引入 `docs/demo` 的真实文件。
-demo 演示**同名 `.card` 的四种样式关系**（style scoped 的含义：本文件里类名的
-样式只属于本文件，不污染全局）：四张卡片类名完全相同，靠各自的 `data-v-{hash}`
-区分作用域 —— 即使样式隔离不生效，它们也会各自正确渲染，看不出差别；隔离
-生效时，谁命中谁不命中一目了然。
+以下源码按组件**从父到子**排列，用 vitepress snippet（`<<< @/…`）直接引入
+`docs/demo` 的真实文件。
 
 ### Demo（父组件）
 
@@ -73,7 +45,8 @@ demo 演示**同名 `.card` 的四种样式关系**（style scoped 的含义：�
 
 :::
 
-卡片 1 的结构**直接写在父组件里**，DOM 带父组件 hash，命中父的 `.card[data-v-父hash]`。
+卡片 1 的结构**直接写在父组件里**：它和页面上的其它 DOM 一样带上父组件 hash，
+命中父的 `.card[data-v-父hash]`；父的 scoped 样式到此为止，进不了任何子组件。
 
 ### ChildCard（子组件 · 同名 .card + 自带 scoped）
 
@@ -86,13 +59,15 @@ demo 演示**同名 `.card` 的四种样式关系**（style scoped 的含义：�
 :::
 
 与父**同名 `.card`**，但样式来自本组件自己的 scoped 文件
-（`.card[data-v-子hash]`）—— 同名类互不污染，父样式命中不了这里。
+（`.card[data-v-子hash]`）：两条规则各自命中自己文件产生的 DOM，同名类互不污染
+—— 父的样式命中不了这张卡，这张卡的样式也影响不到父组件。
 
 ### InheritCard（子组件 · 同名 .card + 手动继承父 scopedId）
 
 <<< @/demo/components/InheritCard.tsx [InheritCard.tsx]
 
-与父**同名 `.card`**，且无自己的 scoped 样式，外观继承自父组件样式。
+与父**同名 `.card`**，且没有自己的 scoped 文件；想让父的 scoped 样式命中自己，
+就把父组件注入的 `scopedId` 绑到自己的 DOM 上（继承父组件的外观）。
 
 ::: warning 警示：继承需要逐层绑定
 组件 scoped 下，父样式会编译成带 `[data-v-父hash]` 的选择器。只把 `scopedId`
@@ -112,8 +87,8 @@ demo 演示**同名 `.card` 的四种样式关系**（style scoped 的含义：�
 
 :::
 
-第四张卡**在父组件中渲染**，类名同样为 `.card`，但没有自己的 scoped 文件、
-也不绑定父 scopedId —— 能命中它的只有 `global.css`（不带 scoped 后缀，选择器
-不改写、**全站生效**）。对照即见差异：上面三张卡各自被带 `[data-v-*]` 的规则
-覆盖成自己的主题色，而这张卡展示的是 global.css 的全局样式；若站点别处出现
-同名 `.card`，同样会被这份全局样式影响（这就是 scoped 要防的“污染”）。
+第四张卡同样由父组件渲染、类名依然是 `.card`，但它既没有自己的 scoped 文件，
+也没有绑定父 `scopedId` —— 能命中它的只剩 `global.css`：不带 scoped 后缀的
+选择器**不会被改写**，规则全站生效。对照即见差异：前三张卡被各自的
+`[data-v-*]` 规则覆盖成主题色，这张卡展示的是全局样式；站点别处若出现同名
+`.card`，同样会被 `global.css` 影响 —— 这正是 scoped 要防的“污染”。
