@@ -18,9 +18,18 @@
     "changeset": "changeset",
     "version:packages": "changeset version",
     "release": "pnpm build && changeset version && changeset publish",
-    "publish:packages": "pnpm -r publish"
+    "publish:packages": "pnpm -r publish",
+    "docs:dev": "vitepress-react dev docs",
+    "docs:build": "vitepress-react build docs",
+    "docs:preview": "vitepress-react preview docs"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.1"
+    "@changesets/cli": "^3.0.1",
+    "@10coding/vitepress-react": "^2.0.0-alpha.22",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@10coding/vite-plugin-jsx-scoped": "^0.4.0"
   }
 }

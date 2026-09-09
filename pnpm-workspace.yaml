@@ -7,3 +7,6 @@ packages:
 allowBuilds:
   esbuild: true
   '@parcel/watcher': true
+
+minimumReleaseAgeExclude:
+  - '@10coding/vitepress-react@2.0.0-alpha.22'

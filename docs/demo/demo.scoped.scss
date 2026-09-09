@@ -1,0 +1,47 @@
+$card-radius: 12px;
+$brand: #4f46e5;
+
+.demo {
+  max-width: 760px;
+  padding: 24px;
+  border: 1px solid rgba($brand, 0.25);
+  border-radius: 16px;
+  background: #ffffff;
+
+  &__title {
+    margin: 0 0 16px;
+    color: $brand;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  &__row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+}
+
+// 父组件自己的 .card：编译后为 .card[data-v-父hash]，
+// 只命中带父 hash 的 DOM（卡片 1 与手动绑定了父 scopedId 的卡片 3）。
+.card {
+  width: 210px;
+  padding: 14px;
+  border-radius: $card-radius;
+  border: 2px solid rgba($brand, 0.4);
+  background: #eef2ff;
+
+  &__name {
+    margin: 0 0 6px;
+    color: $brand;
+    font-weight: 700;
+  }
+
+  &__desc {
+    margin: 0;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+}

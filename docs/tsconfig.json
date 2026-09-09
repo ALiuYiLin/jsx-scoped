@@ -1,0 +1,24 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // 站点代码跑在浏览器/Node 双环境，需要 DOM lib（JSX 元素类型也依赖它）
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // .tsx 组件用自动运行时，无需手动 import React
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    // 全局类型：声明 *.scoped.{css,scss,sass,less} 等命名约定样式模块
+    // （@10coding/vite-plugin-jsx-scoped/client.d.ts，与 playground 配方一致）
+    "types": ["@10coding/vite-plugin-jsx-scoped/client"],
+    // 让 *.scoped.css 这类"仅副作用"导入真的经过上面的模块声明校验
+    "noUncheckedSideEffectImports": true,
+    "noEmit": true
+  },
+  "include": [
+    "demo/**/*.ts",
+    "demo/**/*.tsx",
+    ".vitepress-react/**/*.ts",
+    ".vitepress-react/**/*.mts",
+    ".vitepress-react/**/*.tsx",
+    "env.d.ts"
+  ]
+}

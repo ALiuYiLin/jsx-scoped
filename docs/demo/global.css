@@ -1,0 +1,22 @@
+/* global.css —— 不带 scoped 后缀的普通全局样式：
+   选择器不会被追加 [data-v-*]，规则全站生效（同名类都会被命中）。 */
+.card {
+  width: 210px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px dashed rgba(234, 88, 12, 0.5);
+  background: #fff7ed;
+}
+
+.card__name {
+  margin: 0 0 6px;
+  color: #ea580c;
+  font-weight: 700;
+}
+
+.card__desc {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.7;
+}

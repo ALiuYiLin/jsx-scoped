@@ -47,13 +47,17 @@ export default function jsxScopedVitePlugin(
 ): Plugin {
   const pipeline: JsxScopedPipeline = createJsxScopedPipeline(options)
 
-  // registry 是否由调用方显式传入:是则生命周期归调用方,插件不做自动清理;
-  // 否则(默认单例 / isolated 自建)本插件的生命周期结束时自动 dispose,
-  // 避免长驻进程里会话状态(文件归属/HMR 映射/内联登记)跨任务残留。
+  // registry 生命周期归属:
+  //  - options.registry 显式传入 → 归调用方,插件绝不自动清理;
+  //  - isolated: true(本插件自建独占) → 插件生命周期结束时自动 dispose;
+  //  - 默认(进程级单例,可能与 vitepress-react 核心等其它实例共享) → **不自动
+  //    dispose**:单例是共享资源,单个插件在 closeBundle/server close 时清空会
+  //    抹掉其它实例(如 md 管线)刚 transform 登记的内联样式,导致后续 load 扑空。
   const externallyOwnedRegistry = options.registry != null
+  const ownsExclusiveRegistry = options.isolated === true
 
   function disposeRegistryIfOwned(): void {
-    if (!externallyOwnedRegistry) {
+    if (!externallyOwnedRegistry && ownsExclusiveRegistry) {
       pipeline.registry.dispose()
     }
   }

@@ -1,0 +1,19 @@
+/**
+ * 覆盖默认主题样式(React 版 vitepress):通过覆盖主题 CSS 变量实现,
+ * 参见默认主题 theme.css 中的变量定义。
+ *
+ * 常用变量(亮/暗由 .dark 下的同名变量切换):
+ *   --vp-bg / --vp-bg-alt / --vp-bg-soft  背景层级
+ *   --vp-border / --vp-border-soft        边框
+ *   --vp-fg / --vp-fg-muted / --vp-fg-subtle  前景/次要文字
+ *   --vp-accent / --vp-accent-fg          强调色(链接/按钮/活动态)
+ *   --vp-code-bg / --vp-code-fg           行内代码
+ *   --vp-header-h / --vp-sidebar-w / --vp-outline-w  布局尺寸
+ *   --vp-font-sans / --vp-font-mono       字体
+ */
+
+:root {
+  /* 例如:把强调色换成品牌色 */
+  /* --vp-accent: #6366f1; */
+}
+
