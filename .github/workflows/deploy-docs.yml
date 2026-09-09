@@ -34,6 +34,11 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Fix vitepress-react scoped css case aliases (Linux CI)
+        # 见 .github/scripts/fix-scoped-css-case.mjs：vitepress-react alpha.22
+        # 主题 import 用 PascalCase 的 *.scoped.css，而包内文件名为全小写，
+        # Windows 无感、Linux(CI) 会 UNRESOLVED_IMPORT，这里补大小写副本
+        run: node .github/scripts/fix-scoped-css-case.mjs
       - name: Build docs
         run: pnpm docs:build
         # 产物 base=/jsx-scoped/ 已在 docs/.vitepress-react/config.mts 配置
