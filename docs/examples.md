@@ -13,7 +13,7 @@ description: 以 docs/demo 的四张同名 .card 卡片为例，演示组件级 
 | 1 | 结构直接写在父组件里 | `demo.scoped.scss` | 父组件 hash |
 | 2 | 子组件 `ChildCard` | `child-card.scoped.css` | 子组件自身 hash |
 | 3 | 子组件 `InheritCard` | 无自带样式，逐层绑定父 `scopedId` | 继承父组件 hash |
-| 4 | 子组件 `GlobalCard` | `global.css`（不带 scoped） | 全局（选择器不改写） |
+| 4 | 子组件 `GlobalCard` | 父组件引入的 `global.css` | 全局（选择器不改写） |
 
 style scoped 的含义：**当前文件里类名的样式只属于当前文件，不污染全局**。
 类名相同没关系 —— 每条规则都会被改写成带本文件 hash 的选择器
@@ -43,10 +43,14 @@ import Demo from './demo/demo.tsx'
 
 <<< @/demo/demo.scoped.scss [demo.scoped.scss]
 
+<<< @/demo/global.css [global.css]
+
 :::
 
 卡片 1 的结构**直接写在父组件里**：它和页面上的其它 DOM 一样带上父组件 hash，
 命中父的 `.card[data-v-父hash]`；父的 scoped 样式到此为止，进不了任何子组件。
+父组件还同时 import 了不带 scoped 后缀的 `global.css`（全局对照，见下方
+GlobalCard）。
 
 ### ChildCard（子组件 · 同名 .card + 自带 scoped）
 
@@ -77,18 +81,14 @@ import Demo from './demo/demo.tsx'
 （结构有多少层，就需要继承多少层）。
 :::
 
-### GlobalCard（父组件中渲染 · 同名 .card + global.css）
-
-::: code-group
+### GlobalCard（父组件中渲染 · 同名 .card · 只吃全局样式）
 
 <<< @/demo/components/GlobalCard.tsx [GlobalCard.tsx]
 
-<<< @/demo/global.css [global.css]
-
-:::
-
 第四张卡同样由父组件渲染、类名依然是 `.card`，但它既没有自己的 scoped 文件，
-也没有绑定父 `scopedId` —— 能命中它的只剩 `global.css`：不带 scoped 后缀的
-选择器**不会被改写**，规则全站生效。对照即见差异：前三张卡被各自的
-`[data-v-*]` 规则覆盖成主题色，这张卡展示的是全局样式；站点别处若出现同名
-`.card`，同样会被 `global.css` 影响 —— 这正是 scoped 要防的“污染”。
+也没有绑定父 `scopedId` —— 能命中它的只剩**父组件引入的** `global.css`：
+不带 scoped 后缀的选择器**不会被改写**，全站生效。对照即见差异：这份全局规则
+其实也命中了前三张卡，但它们各自带更高特异性的 `[data-v-*]` 规则（
+`.card[data-v-父]` / `.card[data-v-子]`），把全局样式覆盖掉了；只有 GlobalCard
+没有任何 scoped 身份，全局样式才最终可见。站点别处若出现同名 `.card`，同样会
+被 `global.css` 影响 —— 这正是 scoped 要防的“污染”。

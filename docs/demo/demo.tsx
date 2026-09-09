@@ -4,6 +4,10 @@ import InheritCard from './components/InheritCard'
 
 // 父组件的外部 scoped scss（命名约定 *.scoped.scss）——hash 由 demo.tsx 的绝对路径生成
 import './demo.scoped.scss'
+// 全局样式（不带 scoped 后缀）：由父组件引入，选择器不改写、全站生效。
+// 对照看：它其实会命中本页所有 .card，但带 scoped 的卡被各自更高特异性的
+// .card[data-v-*] 覆盖；只有不带任何 scoped 身份的 GlobalCard 会显示它。
+import './global.css'
 
 export default function Demo() {
   return (
