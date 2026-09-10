@@ -1,6 +1,6 @@
 {
   "name": "@10coding/postcss-jsx-scoped",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "PostCSS plugin for Vue-like scoped styles in JSX/TSX: appends [data-v-{hash}] attribute selectors to CSS selectors",
   "license": "MIT",
   "type": "module",
