@@ -112,11 +112,52 @@ const scopedCss = await transformScopedCss(css, 'data-v-3f2a9c1d')
 > 同一组件可混用外部 `*.scoped.*` 与多个内联 `<style scoped>`，全部复用同一个
 > 由组件文件路径生成的 hash。重复调用本插件是安全的（幂等：已含同属性则跳过）。
 
+## 选择器宏（Vue 风格）
+
+在 scoped 样式里可以用两个函数式宏精确控制“哪一段不加 scope 属性”：
+
+```css
+/* :deep(...) —— 进入子组件作用域：本文件属性挂在左侧最后一个复合选择器上，
+   宏及其右侧不再追加（父组件样式借此命中子组件内部 DOM） */
+.parent :deep(.child) { color: red; }
+/* → .parent[data-v-x] .child */
+
+/* :global(...) —— 括号内跳出作用域，其余照常 */
+.card :global(.ant-btn) { color: red; }
+/* → .card[data-v-x] .ant-btn */
+```
+
+- `:deep(.b)` 无前缀写法 = `[data-v-x] .b`（收窄到本组件根）；
+- `:deep(.a, .b)` 多段参数会展开为多条选择器；
+- `:global(.b)` 无前缀且无后续选择器 = `.b`（纯全局规则）；
+- 只支持**函数式**写法；`>>>`、`/deep/`、`::v-deep`、无括号 `:deep .b` 等旧写法/别名
+  不再特殊处理（会按普通伪类/伪元素走常规追加逻辑）；
+- 含宏的规则处理后会插入一条 `/* jsx-scoped:{attr}:macro */` 注释用于幂等，压缩时会被移除。
+
+> 与组件 scoped（`scopedId`）的关系：`:deep(...)` 解决“父组件样式命中子组件内部
+> 任意后代”；`scopedId` 解决“子组件主动继承父作用域（含逐层绑定）”。两者互补。
+
+## scoped 动画名（@keyframes）
+
+scoped 作用域内的 `@keyframes` 名会追加 `-{scopeAttr}` 后缀（与 Vue scoped 一致），
+避免不同组件的同名动画互相覆盖，同时自动改写 `animation` / `animation-name` 引用：
+
+```css
+@keyframes spin { from { opacity: 0 } to { opacity: 1 } }
+.card { animation: spin 2.4s infinite; }
+/* → @keyframes spin-data-v-x { … }  /  .card[data-v-x] { animation: spin-data-v-x 2.4s infinite } */
+```
+
+不需要该行为时传 `scopeKeyframes: false` 关闭。注意：若动画名被 JS 内联样式引用，
+改名后需同步（与 Vue scoped 的限制一致）。
+
 ## 规则
 
 - 只处理**普通规则**的选择器；选择器列表（逗号）逐段追加；
 - `@media / @supports / @layer / @container` 内部规则正常追加；
-- `@keyframes` 帧选择器（`from` / `to` / 百分比）、`@page` 不追加；
+- `@keyframes` 帧选择器（`from` / `to` / 百分比）、`@page` 不追加；`@keyframes` 名本身
+  会按上一节改写（可关闭）；
+- 选择器宏 `:deep(...)` / `:global(...)` 按上一节语义处理（仅函数式写法）；
 - 已含同 scope 属性时跳过（幂等，可重复执行）；
 - 伪元素（`::before` 等，含单冒号旧写法）保持在 `[data-v-*]` 之后；
 - 输入必须是普通 CSS：scss/less 请先预处理（见上方示例），

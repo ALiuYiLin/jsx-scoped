@@ -52,6 +52,25 @@ import { transformScopedCss } from '@10coding/postcss-jsx-scoped'
 const css = transformScopedCss(source, 'data-v-aa80bcf8', { from: 'x.css' })
 ```
 
+`transformScopedCss(css, scopeAttr, options?)` 的 options：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `from` | `string` | 文件名（sourcemap / 报错定位用） |
+| `prefix` | `string` | 属性前缀，默认 `data-v-` |
+| `scopeKeyframes` | `boolean` | 是否改写 scoped 内 `@keyframes` 动画名，默认 `true` |
+
+选择器宏（仅函数式写法）：
+
+```css
+.parent :deep(.child) { }   /* → .parent[data-v-x] .child（进入子组件作用域） */
+.card :global(.ant-btn) { } /* → .card[data-v-x] .ant-btn（括号内跳出作用域） */
+```
+
+`@keyframes` 改名：scoped 内动画名追加 `-{scopeAttr}`，并同步 `animation` /
+`animation-name` 引用。`>>>`、`/deep/`、`::v-deep`、无括号 `:deep .x` 等旧写法
+不做特殊处理。
+
 追加规则见 [原理：CSS 追加规则细节](/guide/architecture#css-追加规则细节)。
 
 ## @10coding/vite-plugin-jsx-scoped
