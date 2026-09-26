@@ -140,8 +140,8 @@ export default function Demo() {
 - 大写组件、成员表达式组件（`<UI.Button direct-scoped />`）均可；
 - 原生标签上写 marker 无意义（静默忽略并移除）；
 - 属性名可通过 `directScopedAttributeName` 自定义；
-- 强类型组件会对未知 marker 属性报 TS 错——该写法面向 `any`/宽松 props 的
-  变量标签场景，必要时用 `as any`。
+- 默认名带连字符，TS 对这类属性名不做类型检查（与 `data-*` 同理），强类型组件上也
+  不会报未知 prop；若自定义成合法标识符（如 `directScoped`），则需要自行放行。
 
 ## 配置项
 

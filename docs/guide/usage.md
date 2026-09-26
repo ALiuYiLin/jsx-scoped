@@ -27,6 +27,26 @@ export default function Child({ scopedId }: { scopedId?: string }) {
 - 属性名可用 `scopedIdAttributeName` 配置；
 - 已存在同名属性时自动覆盖，不会重复添加。
 
+### Vue JSX：可以零改造继承（attrs 透传）
+
+Vue 会把子组件**未声明**的 attrs 合并到子组件的**唯一根元素**上，所以 Vue JSX 下
+连 `scopedId` 都不用手动绑定：给子组件加 `direct-scoped` marker，插件注入的
+`data-v-{hash}` 会被 Vue 自动透传下去。
+
+```tsx
+// 父组件
+<Child direct-scoped label="子组件零改造" />
+// 子组件根元素最终带 data-v-{父hash} → 父组件 .child-root[data-v-{父hash}] 命中
+```
+
+- 仅**单根**组件生效（多根 / Fragment / 文本根会触发 Vue 的 “could not be
+  automatically inherited” 警告）；
+- 子组件需是 `defineComponent`（或声明了 `props` 的函数组件）：Vue 对**裸函数组件**
+  只透传 `class`/`style`/事件（`getFunctionalFallthrough`），其余 attrs 静默丢弃；
+- 反向注意：有 props 声明的子组件若**没有**声明 `scopedId`，Vue 不会像 React 那样
+  忽略未知 prop，而是透传成根元素上的 `scopedid="data-v-{hash}"` 属性（仅噪声，
+  不影响样式命中）；不想要就让子组件声明该 prop，或 `componentScoped: false`。
+
 ## 变量当标签：`<Comp direct-scoped />`
 
 当大写组件在**运行时其实是原生 DOM 标签**时（如变量持有 `'a'/'button'`），
@@ -45,7 +65,9 @@ export default function Demo() {
 - 大写组件、成员表达式组件（`<UI.Button direct-scoped />`）均可；
 - 原生标签上写 marker 无意义，静默忽略并移除；
 - 属性名可用 `directScopedAttributeName` 配置；
-- 强类型组件会对未知 marker 属性报 TS 错——面向 `any`/宽松 props 的变量标签场景。
+- 默认名带连字符，TS 对这类属性名不做类型检查（与 `data-*` 同理），因此在强类型
+  组件上也不会报未知 prop；若把 marker 配成合法标识符（如 `directScoped`），
+  强类型组件需自行放行该属性。
 
 ## 样式来源一：外部 `*.scoped.*` 导入
 

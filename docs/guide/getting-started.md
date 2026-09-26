@@ -38,7 +38,8 @@ pnpm add -D @10coding/vite-plugin-jsx-scoped
 ## 接入 Vite
 
 ```ts
-// vite.config.ts —— 注意顺序：jsxScoped() 必须排在 react()/solid() 等 JSX 编译插件之前
+// vite.config.ts —— 注意顺序：jsxScoped() 必须排在 react()/solid()/vueJsx() 等
+// JSX 编译插件之前
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import jsxScoped from '@10coding/vite-plugin-jsx-scoped'
@@ -47,6 +48,11 @@ export default defineConfig({
   plugins: [jsxScoped(), react()]
 })
 ```
+
+Vue JSX（Vue 3 + `@vitejs/plugin-vue-jsx`）同样适用，只是插件顺序换成
+`plugins: [jsxScoped(), vueJsx()]`，并把 tsconfig 的 `jsx` 设为 `preserve`、
+`jsxImportSource` 设为 `vue`；完整说明见
+[Vue JSX 示例](https://github.com/ALiuYiLin/jsx-scoped/tree/master/playground/vue)。
 
 ## TS 类型声明
 
@@ -92,9 +98,12 @@ export default function Demo() {
 
 ## 本地体验
 
-本仓库自带两个示例（`playground/react`、`playground/solid`，后者验证框架无关性）：
+本仓库自带三个示例：`playground/react`、`playground/solid`、`playground/vue`
+（后两者验证框架无关性）：
 
 ```bash
-pnpm demo         # React 示例
-pnpm demo:solid   # Solid 示例
+pnpm demo             # React 示例
+pnpm demo:solid       # Solid 示例
+pnpm demo:vue         # Vue JSX 示例
+pnpm verify:demo:vue  # Vue JSX 示例校验（dev SSR 渲染 + dev HTTP 虚拟 css 断言）
 ```

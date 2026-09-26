@@ -45,9 +45,14 @@ CSS 处理而不二次预处理。
 ## 为什么框架无关
 
 属性注入是 **JSX AST 层面**的：DOM 元素加属性、大写组件加 `scopedId`、样式导入
-改写为虚拟模块，全程不绑定某个框架运行时。因此 React / Solid / 任意 JSX 方言、
-以及 md 生成的 TSX（`componentFilePath` 传 md 路径）都通用——仓库 `playground/solid`
-即用于验证该性质。
+改写为虚拟模块，全程不绑定某个框架运行时。因此 React / Solid / Vue JSX / 任意 JSX
+方言、以及 md 生成的 TSX（`componentFilePath` 传 md 路径）都通用——仓库
+`playground/solid` 与 `playground/vue` 即用于验证该性质。
+
+> Vue JSX 侧还有一个由框架语义带来的额外收益：Vue 会把组件未声明的 attrs 透传到
+> 子组件单根元素，所以 `<Child direct-scoped />` 注入的 `data-v-{hash}` 能自动落到
+> 子组件根元素上，实现零改造的 child-root 继承（限制与实测见
+> `playground/vue/README.md`）。
 
 ## 为什么“多组件共享同一 scoped 文件”是错误
 
