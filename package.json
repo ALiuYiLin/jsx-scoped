@@ -33,6 +33,6 @@
     "react-dom": "^19.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@10coding/vite-plugin-jsx-scoped": "^0.4.1"
+    "@10coding/vite-plugin-jsx-scoped": "^0.5.0"
   }
 }
