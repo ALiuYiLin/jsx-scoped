@@ -10,11 +10,17 @@
 ```ts
 // vite.config.ts —— jsxScoped() 必须排在 vueJsx() 之前：
 // 它要在 JSX 被 @vue/babel-plugin-jsx 编译成 createVNode 之前完成注入与提取。
+import { fileURLToPath, URL } from 'node:url'
+
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import jsxScoped from '@10coding/vite-plugin-jsx-scoped'
 
 export default defineConfig({
   plugins: [jsxScoped({ warnMultiScopedImport: true }), vueJsx()],
+  // 路径别名照常用：插件会读取这里配置的 resolve.alias 解析 scoped 样式导入
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   css: {
     preprocessorOptions: {
       scss: { additionalData: '$jsx-scoped-brand: #42b883;\n' }, // 照常生效
@@ -24,13 +30,15 @@ export default defineConfig({
 ```
 
 ```jsonc
-// tsconfig.json —— Vue JSX 需要 preserve + jsxImportSource
+// tsconfig.json —— Vue JSX 需要 preserve + jsxImportSource；
+// paths 与 vite 的 resolve.alias 保持一致（编辑器 / tsc --noEmit 用）
 {
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "vue",
     "types": ["vite/client", "@10coding/vite-plugin-jsx-scoped/client"],
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "paths": { "@/*": ["./src/*"] }
   }
 }
 ```
@@ -39,13 +47,31 @@ export default defineConfig({
 `scoped`，所以 `<style scoped lang="scss">` 能通过 `tsc --noEmit`；`direct-scoped`
 这类**带连字符**的属性 TS 不做检查，也不会报未知 prop。
 
+### 路径别名导入 scoped 样式
+
+`*.scoped.*` 的 specifier 按 **vite 自身的解析顺序**解析：先 `resolve.alias`，
+再相对/绝对路径。所以别名导入与相对导入完全等价：
+
+```tsx
+// Pill.tsx —— 命名约定只看文件名后缀，路径怎么写都可以
+import '@/demo/components/pill.scoped.css'
+// 等价于 import './pill.scoped.css'
+// 两者都会生成同一个 jsx-scoped-file: 虚拟模块（生产产物字节一致）
+```
+
+- 插件在 `configResolved` 阶段读取同一份 `resolve.alias`，无需额外配置插件选项；
+- 别名与相对路径指向同一文件时按**解析后的真实路径**判定归属，
+  所以「同一份 css 只允许一个组件导入」的规则不受路径写法影响；
+- 命中 alias 但文件不存在、或裸包名（`some-pkg/x.scoped.css`）不参与 scope，
+  构建期给出一条「已跳过 scoped 化」警告。
+
 ## 示例覆盖的能力
 
 | 能力 | 位置 | 说明 |
 | --- | --- | --- |
 | 外部 `*.scoped.scss` | `src/demo/demo.tsx` + `demo.scoped.scss` | sass 嵌套、`@media`、`@keyframes` 改名 + `animation` 引用同步 |
 | 外部 `*.scoped.less` | `src/demo/components/Card.tsx` | less 嵌套 / 变量 / `fade()` |
-| 外部 `*.scoped.css` | `src/demo/components/Pill.tsx` | 纯 css，伪元素规则位置（`.pill-scoped[data-v-x]::after`） |
+| 外部 `*.scoped.css` | `src/demo/components/Pill.tsx` | 纯 css，**用路径别名 `@/…` 导入**；伪元素规则位置（`.pill-scoped[data-v-x]::after`） |
 | 内联 `<style scoped>` / `lang="scss"` | `src/demo/demo.tsx` | 编译期提取并移除，不渲染真实 `<style>` 节点 |
 | 组件 scoped：`scopedId` 显式绑定 | `src/demo/components/ScopedRoot.tsx` | 与 React / Solid 示例同语义，跨框架写法一致 |
 | 组件 scoped：Vue attrs 透传 | `src/demo/components/AutoScopedRoot.tsx` | `<AutoScopedRoot direct-scoped />`，子组件零改造 |
@@ -148,8 +174,10 @@ pnpm --filter @10coding/example-vue verify     # 根目录可用 pnpm verify:dem
 1. 走 **dev SSR** 把 `demo.tsx` 渲染成 HTML，断言
    `<section class="demo" data-v-…>`、子组件根元素继承父级 hash、
    内联 `<style scoped>` 未被渲染成真实节点；
-2. 走 **dev HTTP**（浏览器同款路径）拉取 `demo.tsx` 与 `jsx-scoped-file:` /
-   `jsx-scoped-inline:` 虚拟模块，断言 `*.scoped.*` 导入被改写、选择器带 `[data-v-…]`。
+2. 走 **dev HTTP**（浏览器同款路径）拉取 `demo.tsx` / `Pill.tsx` 与 `jsx-scoped-file:` /
+   `jsx-scoped-inline:` 虚拟模块，断言 `*.scoped.*` 导入被改写、选择器带 `[data-v-…]`；
+   其中 `Pill.tsx` 走的是 **路径别名导入**，断言别名 specifier 被改写成虚拟模块。
 
 构建产物同样验证过：`dist/assets/*.css` 里是 `.demo[data-v-…]`、
-`.auto-root[data-v-…]` 等已追加属性的选择器，JS 产物里保留注入的属性。
+`.pill-scoped[data-v-…]`、`.auto-root[data-v-…]` 等已追加属性的选择器，
+JS 产物里保留注入的属性。

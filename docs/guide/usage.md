@@ -74,9 +74,11 @@ export default function Demo() {
 ```tsx
 import './a.scoped.css'
 import './b.scoped.scss'
+import '@/components/c.scoped.less' // vite resolve.alias（@ → src）同样支持
 ```
 
 - 仅 `*.scoped.{css,scss,sass,less}` 参与 scope（其余样式文件按 Vite 常规处理）；
+- 路径解析顺序与 vite 一致：先 `resolve.alias`，再相对/绝对路径；裸包名不参与 scope；
 - 一个组件可导入多份，与内联块**共享同一把 hash**；多份外部文件会触发
   `warnMultiScopedImport` 警告（默认开），提示覆盖风险；
 - **同一份文件被两个不同组件导入 → 构建报错**（组件私有资源）。

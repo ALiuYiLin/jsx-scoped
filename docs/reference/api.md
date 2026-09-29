@@ -98,6 +98,18 @@ interface JsxScopedViteOptions {
 
 优先级：显式 `registry` > `isolated: true`（新建）> 进程级默认单例。
 
+### scoped 样式导入的路径解析
+
+外部 `*.scoped.*` 导入的 specifier 按 **vite 自身的解析顺序** 解析成磁盘真实路径：
+
+1. `resolve.alias`（如 `@` → `src`）—— 插件在 `configResolved` 时读取同一份配置，
+   支持字符串与正则写法，语义对齐 `@rollup/plugin-alias`（精确匹配或 `find/` 前缀）；
+2. 相对路径（`./x.scoped.css`）与绝对路径。
+
+命中 alias 但文件不存在、以及裸包名（`some-pkg/x.scoped.css`）不参与 scope，插件
+会给出「已跳过 scoped 化」的警告。别名与相对路径指向同一文件时完全等价 ——
+「同一份 css 只允许一个组件导入」也按解析后的真实路径判定。
+
 ### client 模块声明
 
 `@10coding/vite-plugin-jsx-scoped/client` 声明了 `*.scoped.{css,scss,sass,less}`

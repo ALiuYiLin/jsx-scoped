@@ -36,6 +36,11 @@ function openingTag(html, tagName, className) {
   return match[0]
 }
 
+/** 从 dev 产物里抓出 jsx-scoped 虚拟 css 模块的 URL */
+function virtualCssUrls(code) {
+  return [...code.matchAll(/["']([^"']*jsx-scoped-[^"']*\.css)["']/g)].map((m) => m[1])
+}
+
 const server = await createServer({
   root,
   server: { host: '127.0.0.1', port: 0, strictPort: false },
@@ -99,9 +104,7 @@ try {
   const demoCode = await demoRes.text()
   assert.ok(demoCode.includes(demoScope), 'dev transform 产物应含注入的 scope 属性')
 
-  const virtualUrls = [
-    ...demoCode.matchAll(/["']([^"']*jsx-scoped-[^"']*\.css)["']/g),
-  ].map((m) => m[1])
+  const virtualUrls = virtualCssUrls(demoCode)
   assert.ok(
     virtualUrls.some((u) => u.includes('jsx-scoped-file:')),
     'dev transform 应把 *.scoped.scss 导入改写到 jsx-scoped-file 虚拟模块',
@@ -118,6 +121,29 @@ try {
       `虚拟 css 模块应含 scoped 选择器 [${demoScope}]: ${url}`,
     )
   }
+
+  // ---- 7) 路径别名（@ → src）导入的 scoped.css 同样被 scoped 化 ----
+  const pillRes = await fetch(`${base}/src/demo/components/Pill.tsx`)
+  assert.ok(pillRes.ok, 'Pill.tsx 应能在 dev 下加载')
+  const pillCode = await pillRes.text()
+  assert.ok(
+    !pillCode.includes('@/demo/components/pill.scoped.css'),
+    '别名 specifier 应被改写（不应原样留在产物里）',
+  )
+  const pillVirtualUrls = virtualCssUrls(pillCode).filter((u) =>
+    u.includes('jsx-scoped-file:'),
+  )
+  assert.equal(
+    pillVirtualUrls.length,
+    1,
+    '别名导入的 pill.scoped.css 应被改写成 1 个 jsx-scoped-file 虚拟模块',
+  )
+  const pillCssRes = await fetch(new URL(pillVirtualUrls[0], base))
+  assert.ok(pillCssRes.ok, `别名的虚拟 css 模块应可加载: ${pillVirtualUrls[0]}`)
+  assert.ok(
+    (await pillCssRes.text()).includes(`[${pillScope}]`),
+    '别名导入的 scoped.css 选择器应追加 [data-v-<Pill hash>]',
+  )
 
   console.log('[verify] Vue JSX scoped 校验通过')
   console.log(`[verify] demo.tsx → ${demoScope}（外部 scss + 2 个内联 <style scoped>）`)

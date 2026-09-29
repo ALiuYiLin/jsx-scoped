@@ -8,7 +8,11 @@
     "useDefineForClassFields": true,
     "noEmit": true,
     "types": ["vite/client", "@10coding/vite-plugin-jsx-scoped/client"],
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    // 与 vite.config.ts 的 resolve.alias 保持一致（`@` → src）
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

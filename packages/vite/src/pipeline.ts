@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { transformSync, type PluginItem } from '@babel/core'
@@ -10,7 +11,7 @@ import { transformScopedCss } from '@10coding/postcss-jsx-scoped'
 
 import { compileCssToPlain, langFromFilename, type AdditionalData } from './compile'
 import { buildExtractor } from './extract'
-import type { ResolvedConfig } from 'vite'
+import type { Alias, AliasOptions, ResolvedConfig } from 'vite'
 
 export type { AdditionalData }
 
@@ -247,19 +248,52 @@ export function parseVirtualId(id: string): ParsedVirtualId {
   return null
 }
 
-/** 解析组件里的 scoped 样式导入 → 磁盘真实路径(仅支持相对/绝对路径) */
-function resolveRealCssPath(componentFilePath: string, specifier: string): string | null {
-  const clean = specifier.split('?')[0] ?? specifier
-  if (!clean) return null
-  let resolved: string
-  if (/^\.{1,2}\//.test(clean)) {
-    resolved = path.resolve(path.dirname(componentFilePath), clean)
-  } else if (path.isAbsolute(clean)) {
-    resolved = clean
-  } else {
+/**
+ * scoped 样式导入的解析结果:
+ *  - `resolved`:拿到了磁盘真实路径,可以生成虚拟 css 模块;
+ *  - `unsupported`:既不是相对/绝对路径,也没命中 vite `resolve.alias`;
+ *  - `missing`:命中了 alias,但映射出的文件不存在(通常是别名配置写错)。
+ */
+type ScopedCssResolution =
+  | { kind: 'resolved'; realPath: string }
+  | { kind: 'unsupported' }
+  | { kind: 'missing'; attempted: string }
+
+/** 归一化 alias 配置:resolved config 一般是数组,也兼容对象的 InlineConfig 写法 */
+function toAliasEntries(alias: AliasOptions | undefined): readonly Alias[] {
+  if (!alias) return []
+  if (Array.isArray(alias)) return alias as readonly Alias[]
+  return Object.entries(alias).map(([find, replacement]) => ({
+    find,
+    replacement: replacement as string,
+  }))
+}
+
+/** 单条 alias 是否命中 specifier(语义对齐 vite / @rollup/plugin-alias:精确或 `find/` 前缀) */
+function aliasMatches(find: string | RegExp, specifier: string): boolean {
+  if (find instanceof RegExp) return find.test(specifier)
+  if (specifier.length < find.length) return false
+  return specifier === find || specifier.startsWith(`${find}/`)
+}
+
+/**
+ * 用 vite 的 `resolve.alias` 把 specifier 映射为绝对路径。
+ * 返回 null 表示「没命中」或「映射结果不是文件系统路径」(例如映射到裸包名)——
+ * 后者交给 vite 自己解析,插件不猜。
+ */
+function resolveAliasPath(
+  alias: AliasOptions | undefined,
+  specifier: string,
+  root: string,
+): string | null {
+  for (const entry of toAliasEntries(alias)) {
+    if (!aliasMatches(entry.find, specifier)) continue
+    const replaced = specifier.replace(entry.find, entry.replacement)
+    if (path.isAbsolute(replaced)) return normalizePath(replaced)
+    if (/^\.{1,2}\//.test(replaced)) return normalizePath(path.resolve(root, replaced))
     return null
   }
-  return normalizePath(resolved)
+  return null
 }
 
 function parserPluginsFor(filename: string): Array<'typescript' | 'jsx'> {
@@ -374,6 +408,41 @@ export class JsxScopedPipeline {
   }
 
   /**
+   * 解析组件里的 scoped 样式导入 → 磁盘真实路径。
+   * 解析顺序与 vite 一致:先 `resolve.alias`,再相对/绝对路径;其余(裸包名等)
+   * 返回 `unsupported`,调用方降级为警告并跳过 scoped 化。
+   */
+  private resolveScopedCssRealPath(
+    componentFilePath: string,
+    specifier: string,
+  ): ScopedCssResolution {
+    const clean = specifier.split('?')[0] ?? specifier
+    if (!clean) return { kind: 'unsupported' }
+
+    const viaAlias = resolveAliasPath(
+      this.config?.resolve?.alias,
+      clean,
+      this.config?.root ?? process.cwd(),
+    )
+    if (viaAlias) {
+      return existsSync(viaAlias)
+        ? { kind: 'resolved', realPath: viaAlias }
+        : { kind: 'missing', attempted: viaAlias }
+    }
+
+    if (/^\.{1,2}\//.test(clean)) {
+      return {
+        kind: 'resolved',
+        realPath: normalizePath(path.resolve(path.dirname(componentFilePath), clean)),
+      }
+    }
+    if (path.isAbsolute(clean)) {
+      return { kind: 'resolved', realPath: normalizePath(clean) }
+    }
+    return { kind: 'unsupported' }
+  }
+
+  /**
    * 核心转换:注入 scope 属性 + 改写 scoped import + 提取内联 <style scoped>。
    * @param code              tsx/jsx 源码
    * @param componentFilePath scope 种子与相对导入解析基准(可非真实 JSX 文件)
@@ -423,16 +492,21 @@ export class JsxScopedPipeline {
     const scopedImportMap = new Map<string, string>()
     const virtualIds: string[] = []
     for (const external of analysis.externalImports) {
-      const cssRealPath = resolveRealCssPath(normalizedComponent, external.specifier)
-      if (!cssRealPath) {
+      const resolution = this.resolveScopedCssRealPath(normalizedComponent, external.specifier)
+      if (resolution.kind !== 'resolved') {
+        const detail =
+          resolution.kind === 'missing'
+            ? `vite resolve.alias 解析到不存在的文件(${resolution.attempted})`
+            : `仅支持相对/绝对路径或 vite resolve.alias 的 scoped 样式导入`
         this.collectWarn(
           warnings,
           `spec|${normalizedComponent}|${external.specifier}`,
-          `[@10coding/vite-plugin-jsx-scoped] 仅支持相对/绝对路径的 scoped 样式导入` +
-            `(已跳过 scoped 化): ${normalizedComponent} -> ${external.specifier}`,
+          `[@10coding/vite-plugin-jsx-scoped] ${detail}(已跳过 scoped 化): ` +
+            `${normalizedComponent} -> ${external.specifier}`,
         )
         continue
       }
+      const cssRealPath = resolution.realPath
       const previousOwner = this.registry.cssOwners.get(cssRealPath)
       if (previousOwner && previousOwner !== normalizedComponent) {
         throw new Error(
