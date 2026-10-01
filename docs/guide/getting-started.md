@@ -35,6 +35,12 @@ pnpm add -D @10coding/vite-plugin-jsx-scoped
 依赖会自动带上 babel / postcss 两包；单独使用它们亦可按需安装
 （见 [API 参考](/reference/api)）。
 
+> **Vite 版本**：支持 Vite 5 / 6 / 7 / 8。Vite 8 的 Rolldown 内核已实测
+> （dev 注入 + HMR + 生产构建 + `resolve.alias` 与 Vite 6 行为一致）；
+> 注意 Vite 8 自身要求 Node `^20.19.0 || >=22.12.0`。
+> 类型声明以 Vite 6 为编译基线，在 Vite 6 / 8 消费者下都能通过 `tsc`，
+> 升级 Vite 版本不需要改 tsconfig。
+
 ## 接入 Vite
 
 ```ts

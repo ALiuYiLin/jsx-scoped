@@ -98,6 +98,9 @@ export default defineConfig({
 })
 ```
 
+> 兼容 **Vite 5 / 6 / 7 / 8**（`playground/vue` 的 verify 在 Vite 6.4.3 与 8.2.2
+> 下逐项一致：dev、HMR、`resolve.alias`、生产产物）。
+
 组件侧写法：
 
 ```tsx

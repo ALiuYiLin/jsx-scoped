@@ -160,6 +160,10 @@ export default defineComponent({
 
 ## 运行与校验
 
+> 本示例固定在 **Vite 8（Rolldown 内核）** 上运行；同一套 `verify` 断言在
+> Vite 6.4.3 与 8.2.2 下逐项一致（dev SSR、dev HTTP 虚拟模块、别名导入、
+> HMR 联动、生产产物选择器）。
+
 ```bash
 pnpm install
 

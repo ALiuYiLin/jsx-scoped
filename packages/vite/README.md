@@ -13,6 +13,16 @@ pnpm add -D sass less
 > 内部依赖 `@10coding/plugin-jsx-scoped`（注入 `data-v-*`）与
 > `@10coding/postcss-jsx-scoped`（选择器追加 `[data-v-*]`），会随本包自动安装。
 
+> **兼容 Vite 5 / 6 / 7 / 8**（peer: `^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0`）。
+> Vite 8（Rolldown 内核）已实测：dev 注入与 SSR、虚拟 css 模块、HMR 联动、
+> `resolve.alias` 解析、`build --watch`、生产产物追加选择器全部通过
+> （`playground/vue` 的 `verify` 在 Vite 6.4.3 与 8.2.2 下逐项一致）。
+> 注意 Vite 8 自身要求 Node `^20.19.0 || >=22.12.0`，与本包 `engines: node >=18` 无关。
+>
+> 产物 `d.ts` 以 **Vite 6 类型为编译基线**：Vite 8 的 rolldown `Plugin` 类型与
+> Vite 6/7 不兼容（会反向破坏老版本消费者的 `tsc`），而 Vite 6 基线产出的类型在
+> Vite 6 / 8 消费者下均可通过检查。升级到 Vite 8 的项目无需改 tsconfig。
+
 ## 用法
 
 ```ts
